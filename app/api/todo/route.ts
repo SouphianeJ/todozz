@@ -28,9 +28,8 @@ export async function GET(request: NextRequest) {
 
     const querySnapshot = await todosCollection.get();
     const todos: TodoDocument[] = [];
-    querySnapshot.forEach((doc) => {
-      // Ensure checklist items have IDs if they were missing (for older data perhaps)
-      const data = doc.data() as Omit<TodoDocument, 'id'>;
+    querySnapshot.forEach((docSnap) => {
+  const data = docSnap.data();
       const checklistWithIds: ChecklistItemType[] = (data.checklist || []).map((item, index) => ({
         ...item,
         id: item.id || `item-${index}-${Date.now()}`, // Fallback id generation
