@@ -1,6 +1,6 @@
 import { Timestamp } from 'firebase/firestore';
 
-export const ASSIGNEES = ['Alice', 'Bob', 'Charlie'] as const;
+export const ASSIGNEES = ['Emma', 'Souphiane'] as const;
 export type Assignee = typeof ASSIGNEES[number];
 
 export interface ChecklistItemType {
