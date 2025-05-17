@@ -6,6 +6,14 @@ interface RouteParams {
   params: { id: string };
 }
 
+function toIsoDate(ts: any): string {
+  if (ts instanceof Timestamp) return ts.toDate().toISOString();
+  if (typeof ts === 'object' && ts._seconds) {
+    return new Timestamp(ts._seconds, ts._nanoseconds).toDate().toISOString();
+  }
+  return new Date(ts).toISOString(); // fallback
+}
+
 function serializeTodoDocument(data: any, id: string): TodoDocument {
   return {
     id,
@@ -15,10 +23,11 @@ function serializeTodoDocument(data: any, id: string): TodoDocument {
     subCategory: data.subCategory,
     assignee: data.assignee,
     checklist: data.checklist,
-    createdAt: (data.createdAt as Timestamp).toDate().toISOString(),
-    updatedAt: (data.updatedAt as Timestamp).toDate().toISOString(),
+    createdAt: toIsoDate(data.createdAt),
+    updatedAt: toIsoDate(data.updatedAt),
   };
 }
+
 
 export async function GET(request: NextRequest, { params }: RouteParams) {
   try {
