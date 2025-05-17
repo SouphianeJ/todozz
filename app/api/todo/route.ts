@@ -1,84 +1,69 @@
 import { NextResponse, NextRequest } from 'next/server';
-import { db, todosCollection, serverTimestamp, FieldValue } from '@/lib/firebase';
-import { addDoc, getDocs, query, where, Timestamp } from 'firebase/firestore';
+import { todosCollection, FieldValue, Timestamp } from '@/lib/firestoreService';
 import { Todo, TodoDocument, ChecklistItemType } from '@/types';
-import { todosCollection, FieldValue } from '@/lib/firestoreService';
 
-
-// Helper to convert Firestore Timestamps to ISO strings
-function serializeTodoDocument(doc: TodoDocument): Omit<TodoDocument, 'createdAt' | 'updatedAt'> & { createdAt: string, updatedAt: string } {
+// Helper to serialize Firestore Timestamp
+function serializeTodoDocument(doc: FirebaseFirestore.DocumentSnapshot): TodoDocument {
+  const data = doc.data()!;
   return {
-    ...doc,
-    createdAt: doc.createdAt.toDate().toISOString(),
-    updatedAt: doc.updatedAt.toDate().toISOString(),
+    id: doc.id,
+    ...data,
+    createdAt: (data.createdAt as Timestamp).toDate().toISOString(),
+    updatedAt: (data.updatedAt as Timestamp).toDate().toISOString(),
   };
 }
 
-
-// GET /api/todo - List all todos, optionally filter by category
 export async function GET(request: NextRequest) {
   try {
-    const searchParams = request.nextUrl.searchParams;
-    const category = searchParams.get('category');
-
-    let q = query(todosCollection);
-    if (category) {
-      q = query(todosCollection, where('category', '==', category));
-    }
-
-    const querySnapshot = await todosCollection.get();
+    const snapshot = await todosCollection.get();
     const todos: TodoDocument[] = [];
-    querySnapshot.forEach((docSnap) => {
-  const data = docSnap.data();
-      const checklistWithIds: ChecklistItemType[] = (data.checklist || []).map((item, index) => ({
+
+    snapshot.forEach((doc) => {
+      const data = doc.data();
+      const checklistWithIds: ChecklistItemType[] = (data.checklist || []).map((item: any, index: number) => ({
         ...item,
-        id: item.id || `item-${index}-${Date.now()}`, // Fallback id generation
+        id: item.id || `item-${index}-${Date.now()}`
       }));
 
-      todos.push({ id: doc.id, ...data, checklist: checklistWithIds } as TodoDocument);
+      todos.push({
+        ...serializeTodoDocument(doc),
+        checklist: checklistWithIds,
+      } as TodoDocument);
     });
 
-    // Sort by createdAt descending (newest first)
-    todos.sort((a, b) => b.createdAt.toMillis() - a.createdAt.toMillis());
-    
-    return NextResponse.json(todos.map(serializeTodoDocument));
+    todos.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+
+    return NextResponse.json(todos);
   } catch (error) {
-    console.error("Error fetching todos:", error);
-    return NextResponse.json({ message: 'Failed to fetch todos', error: (error as Error).message }, { status: 500 });
+    console.error('Error fetching todos:', error);
+    return NextResponse.json({ message: 'Failed to fetch todos', error: String(error) }, { status: 500 });
   }
 }
 
-// POST /api/todo - Create a new todo
 export async function POST(request: NextRequest) {
   try {
     const todoData = (await request.json()) as Todo;
 
-    if (!todoData.title) {
-        return NextResponse.json({ message: 'Title is required' }, { status: 400 });
+    if (!todoData.title?.trim()) {
+      return NextResponse.json({ message: 'Title is required' }, { status: 400 });
     }
-    
-    // Ensure checklist items have IDs
+
     const checklistWithIds: ChecklistItemType[] = (todoData.checklist || []).map((item, index) => ({
       ...item,
-      id: item.id || `item-${index}-${Date.now()}` // Generate ID if missing
+      id: item.id || `item-${index}-${Date.now()}`
     }));
 
     const newTodo = {
       ...todoData,
       checklist: checklistWithIds,
-      createdAt: serverTimestamp() as FieldValue,
-      updatedAt: serverTimestamp() as FieldValue,
+      createdAt: FieldValue.serverTimestamp(),
+      updatedAt: FieldValue.serverTimestamp(),
     };
 
-    const docRef = await todosCollection.add(newTodo);, newTodo);
-    
-    // For the response, we can't directly return serverTimestamp.
-    // We'd ideally fetch the doc again, or return a representation.
-    // For simplicity, returning the ID and a success message.
+    const docRef = await todosCollection.add(newTodo);
     return NextResponse.json({ id: docRef.id, message: 'Todo created successfully' }, { status: 201 });
-
   } catch (error) {
     console.error("Error creating todo:", error);
-    return NextResponse.json({ message: 'Failed to create todo', error: (error as Error).message }, { status: 500 });
+    return NextResponse.json({ message: 'Failed to create todo', error: String(error) }, { status: 500 });
   }
 }
