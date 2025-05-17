@@ -2,6 +2,8 @@ import { NextResponse, NextRequest } from 'next/server';
 import { db, todosCollection, serverTimestamp, FieldValue } from '@/lib/firebase';
 import { addDoc, getDocs, query, where, Timestamp } from 'firebase/firestore';
 import { Todo, TodoDocument, ChecklistItemType } from '@/types';
+import { todosCollection, FieldValue } from '@/lib/firestoreService';
+
 
 // Helper to convert Firestore Timestamps to ISO strings
 function serializeTodoDocument(doc: TodoDocument): Omit<TodoDocument, 'createdAt' | 'updatedAt'> & { createdAt: string, updatedAt: string } {
@@ -24,7 +26,7 @@ export async function GET(request: NextRequest) {
       q = query(todosCollection, where('category', '==', category));
     }
 
-    const querySnapshot = await getDocs(q);
+    const querySnapshot = await todosCollection.get();
     const todos: TodoDocument[] = [];
     querySnapshot.forEach((doc) => {
       // Ensure checklist items have IDs if they were missing (for older data perhaps)
@@ -69,7 +71,7 @@ export async function POST(request: NextRequest) {
       updatedAt: serverTimestamp() as FieldValue,
     };
 
-    const docRef = await addDoc(todosCollection, newTodo);
+    const docRef = await todosCollection.add(newTodo);, newTodo);
     
     // For the response, we can't directly return serverTimestamp.
     // We'd ideally fetch the doc again, or return a representation.
