@@ -30,11 +30,12 @@ const ChecklistItem: React.FC<ChecklistItemProps> = ({
           {...dragHandleProps}
           aria-label="Drag to reorder"
           style={{
-            cursor: 'grab',
-            userSelect: 'none',
-            fontSize: '1.2rem',
-            padding: '0 4px',
-          }}
+  cursor: 'grab',
+  userSelect: 'none',
+  fontSize: '1.2rem',
+  padding: '0 4px',
+  touchAction: 'none', // 👈 empêche le scroll pendant le drag
+}}
         >
           ☰
         </span>
