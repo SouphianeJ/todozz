@@ -43,12 +43,18 @@ const SortableChecklistItem: React.FC<ChecklistItemWrapperProps> = (props) => {
     setNodeRef,
     transform,
     transition,
+    isDragging,
   } = useSortable({ id: props.item.id });
 
   const style = {
     transform: CSS.Transform.toString(transform),
     transition,
     touchAction: 'manipulation',
+    opacity: isDragging ? 0.5 : 1,
+    boxShadow: isDragging ? '0 0 10px rgba(0,0,0,0.3)' : undefined,
+    cursor: 'grab',
+    borderRadius: '6px',
+    backgroundColor: isDragging ? '#f9f9f9' : undefined,
   };
 
   return (
