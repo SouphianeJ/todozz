@@ -7,11 +7,12 @@ import ChecklistItem from './ChecklistItem';
 import CategorySelector from './CategorySelector';
 
 import {
-  DndContext,
-  closestCenter,
-  PointerSensor,
+  TouchSensor,
+  MouseSensor,
   useSensor,
   useSensors,
+  DndContext,
+  closestCenter,
 } from '@dnd-kit/core';
 import {
   SortableContext,
@@ -187,12 +188,14 @@ const TodoForm: React.FC<TodoFormProps> = ({ initialData }) => {
   };
 
   const sensors = useSensors(
-    useSensor(PointerSensor, {
-      activationConstraint: {
-        distance: 5,
-      },
-    })
-  );
+  useSensor(MouseSensor),
+  useSensor(TouchSensor, {
+    activationConstraint: {
+      delay: 150,
+      tolerance: 5,
+    },
+  })
+);
 
   const handleDragEnd = (event: any) => {
     const { active, over } = event;
