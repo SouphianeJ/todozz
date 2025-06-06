@@ -52,18 +52,19 @@ const SortableChecklistItem: React.FC<ChecklistItemWrapperProps> = (props) => {
     touchAction: 'manipulation',
     opacity: isDragging ? 0.5 : 1,
     boxShadow: isDragging ? '0 0 10px rgba(0,0,0,0.3)' : undefined,
-    cursor: 'grab',
-    borderRadius: '6px',
     backgroundColor: isDragging ? '#f9f9f9' : undefined,
+    borderRadius: '6px',
   };
 
   return (
-    <div ref={setNodeRef} style={style} {...attributes} {...listeners}>
-      <ChecklistItem {...props} />
+    <div ref={setNodeRef} style={style}>
+      <ChecklistItem
+        {...props}
+        dragHandleProps={{ ...attributes, ...listeners }}
+      />
     </div>
   );
 };
-
 const TodoForm: React.FC<TodoFormProps> = ({ initialData }) => {
   const router = useRouter();
   const [title, setTitle] = useState('');
