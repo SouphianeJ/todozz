@@ -9,7 +9,7 @@ interface ChecklistItemProps {
   onTextChange: (id: string, newText: string) => void;
   onDelete: (id: string) => void;
   isEditing: boolean;
-  dragHandleProps?: React.HTMLAttributes<HTMLButtonElement>; // 👈 nouveau
+  dragHandleProps?: React.HTMLAttributes<HTMLSpanElement>; // Poignée sur span (meilleur contrôle inline)
 }
 
 const ChecklistItem: React.FC<ChecklistItemProps> = ({
@@ -21,24 +21,23 @@ const ChecklistItem: React.FC<ChecklistItemProps> = ({
   dragHandleProps,
 }) => {
   return (
-    <div className="checklist-item" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+    <div
+      className="checklist-item"
+      style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}
+    >
       {isEditing && (
-        <button
-          type="button"
+        <span
           {...dragHandleProps}
           aria-label="Drag to reorder"
           style={{
             cursor: 'grab',
-            background: 'none',
-            border: 'none',
-            padding: 0,
-            fontSize: '1.25rem',
-            lineHeight: 1,
             userSelect: 'none',
+            fontSize: '1.2rem',
+            padding: '0 4px',
           }}
         >
           ☰
-        </button>
+        </span>
       )}
       <input
         type="checkbox"
@@ -60,7 +59,11 @@ const ChecklistItem: React.FC<ChecklistItemProps> = ({
         </span>
       )}
       {isEditing && (
-        <button type="button" onClick={() => onDelete(item.id)} aria-label={`Delete ${item.text}`}>
+        <button
+          type="button"
+          onClick={() => onDelete(item.id)}
+          aria-label={`Delete ${item.text}`}
+        >
           &times;
         </button>
       )}
