@@ -59,7 +59,7 @@ const SortableChecklistItem: React.FC<ChecklistItemWrapperProps> = (props) => {
     <div ref={setNodeRef} style={style}>
       <ChecklistItem
         {...props}
-        dragHandleProps={{ ...attributes, ...listeners }} // poignée uniquement
+        dragHandleProps={{ ...attributes, ...listeners }}
       />
     </div>
   );
@@ -75,6 +75,8 @@ const TodoForm: React.FC<TodoFormProps> = ({ initialData }) => {
   const [checklist, setChecklist] = useState<ChecklistItemType[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const [lastSavedData, setLastSavedData] = useState<string | null>(null); // 👈 auto-save tracking
 
   const isEditing = !!initialData;
 
@@ -93,6 +95,40 @@ const TodoForm: React.FC<TodoFormProps> = ({ initialData }) => {
       );
     }
   }, [initialData]);
+
+  // ✅ Auto-save logic
+  useEffect(() => {
+    const interval = setInterval(() => {
+      const currentData: Todo = {
+        title,
+        description,
+        category,
+        subCategory,
+        assignee,
+        checklist: checklist.filter((item) => item.text.trim() !== ''),
+      };
+      const json = JSON.stringify(currentData);
+      if (json !== lastSavedData) {
+        autoSave(currentData);
+        setLastSavedData(json);
+      }
+    }, 5000); // Every 5 seconds
+
+    return () => clearInterval(interval);
+  }, [title, description, category, subCategory, assignee, checklist, lastSavedData]);
+
+  const autoSave = async (data: Todo) => {
+    if (!isEditing || !initialData?.id) return;
+    try {
+      await fetch(`/api/todo/${initialData.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+      });
+    } catch (err) {
+      console.error('Auto-save failed:', err);
+    }
+  };
 
   const handleAddChecklistItem = () => {
     setChecklist([...checklist, { id: generateId(), text: '', checked: false }]);
@@ -188,14 +224,14 @@ const TodoForm: React.FC<TodoFormProps> = ({ initialData }) => {
   };
 
   const sensors = useSensors(
-  useSensor(MouseSensor),
-  useSensor(TouchSensor, {
-    activationConstraint: {
-      delay: 150,
-      tolerance: 5,
-    },
-  })
-);
+    useSensor(MouseSensor),
+    useSensor(TouchSensor, {
+      activationConstraint: {
+        delay: 150,
+        tolerance: 5,
+      },
+    })
+  );
 
   const handleDragEnd = (event: any) => {
     const { active, over } = event;
