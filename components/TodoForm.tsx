@@ -21,7 +21,6 @@ import {
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 
-// Helper to generate unique IDs
 const generateId = () => Math.random().toString(36).substr(2, 9);
 
 interface TodoFormProps {
@@ -51,7 +50,6 @@ const SortableChecklistItem: React.FC<ChecklistItemWrapperProps> = (props) => {
     transition,
     touchAction: 'manipulation',
     opacity: isDragging ? 0.5 : 1,
-    boxShadow: isDragging ? '0 0 10px rgba(0,0,0,0.3)' : undefined,
     backgroundColor: isDragging ? '#f9f9f9' : undefined,
     borderRadius: '6px',
   };
@@ -60,11 +58,12 @@ const SortableChecklistItem: React.FC<ChecklistItemWrapperProps> = (props) => {
     <div ref={setNodeRef} style={style}>
       <ChecklistItem
         {...props}
-        dragHandleProps={{ ...attributes, ...listeners }}
+        dragHandleProps={{ ...attributes, ...listeners }} // poignée uniquement
       />
     </div>
   );
 };
+
 const TodoForm: React.FC<TodoFormProps> = ({ initialData }) => {
   const router = useRouter();
   const [title, setTitle] = useState('');
@@ -85,7 +84,12 @@ const TodoForm: React.FC<TodoFormProps> = ({ initialData }) => {
       setCategory(initialData.category);
       setSubCategory(initialData.subCategory);
       setAssignee(initialData.assignee);
-      setChecklist(initialData.checklist.map(item => ({ ...item, id: item.id || generateId() })));
+      setChecklist(
+        initialData.checklist.map((item) => ({
+          ...item,
+          id: item.id || generateId(),
+        }))
+      );
     }
   }, [initialData]);
 
@@ -95,13 +99,17 @@ const TodoForm: React.FC<TodoFormProps> = ({ initialData }) => {
 
   const handleChecklistChange = (id: string, newText: string) => {
     setChecklist(
-      checklist.map((item) => (item.id === id ? { ...item, text: newText } : item))
+      checklist.map((item) =>
+        item.id === id ? { ...item, text: newText } : item
+      )
     );
   };
 
   const handleChecklistToggle = (id: string) => {
     setChecklist(
-      checklist.map((item) => (item.id === id ? { ...item, checked: !item.checked } : item))
+      checklist.map((item) =>
+        item.id === id ? { ...item, checked: !item.checked } : item
+      )
     );
   };
 
@@ -115,7 +123,7 @@ const TodoForm: React.FC<TodoFormProps> = ({ initialData }) => {
     setError(null);
 
     if (!title.trim()) {
-      setError("Title is required.");
+      setError('Title is required.');
       setIsSubmitting(false);
       return;
     }
@@ -126,7 +134,7 @@ const TodoForm: React.FC<TodoFormProps> = ({ initialData }) => {
       category,
       subCategory,
       assignee,
-      checklist: checklist.filter(item => item.text.trim() !== ''),
+      checklist: checklist.filter((item) => item.text.trim() !== ''),
     };
 
     try {
@@ -146,7 +154,6 @@ const TodoForm: React.FC<TodoFormProps> = ({ initialData }) => {
 
       router.push('/');
       router.refresh();
-
     } catch (err: any) {
       setError(err.message);
     } finally {
@@ -155,19 +162,22 @@ const TodoForm: React.FC<TodoFormProps> = ({ initialData }) => {
   };
 
   const handleDelete = async () => {
-    if (!initialData || !initialData.id) return;
-    if (!confirm("Are you sure you want to delete this todo?")) return;
+    if (!initialData?.id) return;
+    if (!confirm('Are you sure you want to delete this todo?')) return;
 
     setIsSubmitting(true);
     setError(null);
+
     try {
       const response = await fetch(`/api/todo/${initialData.id}`, {
         method: 'DELETE',
       });
+
       if (!response.ok) {
         const errorData = await response.json();
         throw new Error(errorData.message || 'Failed to delete todo');
       }
+
       router.push('/');
       router.refresh();
     } catch (err: any) {
@@ -176,17 +186,19 @@ const TodoForm: React.FC<TodoFormProps> = ({ initialData }) => {
     }
   };
 
-  const sensors = useSensors(useSensor(PointerSensor, {
-    activationConstraint: {
-      distance: 5,
-    },
-  }));
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 5,
+      },
+    })
+  );
 
   const handleDragEnd = (event: any) => {
     const { active, over } = event;
     if (active.id !== over?.id) {
-      const oldIndex = checklist.findIndex(i => i.id === active.id);
-      const newIndex = checklist.findIndex(i => i.id === over?.id);
+      const oldIndex = checklist.findIndex((i) => i.id === active.id);
+      const newIndex = checklist.findIndex((i) => i.id === over?.id);
       setChecklist((items) => arrayMove(items, oldIndex, newIndex));
     }
   };
@@ -253,7 +265,10 @@ const TodoForm: React.FC<TodoFormProps> = ({ initialData }) => {
           collisionDetection={closestCenter}
           onDragEnd={handleDragEnd}
         >
-          <SortableContext items={checklist.map(item => item.id)} strategy={verticalListSortingStrategy}>
+          <SortableContext
+            items={checklist.map((item) => item.id)}
+            strategy={verticalListSortingStrategy}
+          >
             {checklist.map((item) => (
               <SortableChecklistItem
                 key={item.id}
@@ -278,14 +293,30 @@ const TodoForm: React.FC<TodoFormProps> = ({ initialData }) => {
 
       <div className="button-group">
         <button type="submit" className="button" disabled={isSubmitting}>
-          {isSubmitting ? (isEditing ? 'Saving...' : 'Creating...') : (isEditing ? 'Save Changes' : 'Create Todo')}
+          {isSubmitting
+            ? isEditing
+              ? 'Saving...'
+              : 'Creating...'
+            : isEditing
+            ? 'Save Changes'
+            : 'Create Todo'}
         </button>
         {isEditing && (
-          <button type="button" className="button button-danger" onClick={handleDelete} disabled={isSubmitting}>
+          <button
+            type="button"
+            className="button button-danger"
+            onClick={handleDelete}
+            disabled={isSubmitting}
+          >
             Delete Todo
           </button>
         )}
-        <button type="button" className="button button-secondary" onClick={() => router.back()} disabled={isSubmitting}>
+        <button
+          type="button"
+          className="button button-secondary"
+          onClick={() => router.back()}
+          disabled={isSubmitting}
+        >
           Cancel
         </button>
       </div>
