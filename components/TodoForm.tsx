@@ -4,18 +4,59 @@ import React, { useState, useEffect, FormEvent } from 'react';
 import { useRouter } from 'next/navigation';
 import { Todo, ChecklistItemType, ASSIGNEES, Assignee, TodoDocument } from '@/types';
 import ChecklistItem from './ChecklistItem';
-import CategorySelector from './CategorySelector'; // Assuming this component exists
+import CategorySelector from './CategorySelector';
 
-// Helper to generate unique IDs for checklist items
+import {
+  DndContext,
+  closestCenter,
+  PointerSensor,
+  useSensor,
+  useSensors,
+} from '@dnd-kit/core';
+import {
+  SortableContext,
+  useSortable,
+  verticalListSortingStrategy,
+  arrayMove,
+} from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
+
+// Helper to generate unique IDs
 const generateId = () => Math.random().toString(36).substr(2, 9);
 
 interface TodoFormProps {
   initialData?: TodoDocument | null;
-  // For simplicity, categories and subCategories are fetched or managed by the parent page
-  // And passed as suggestions if needed. Here, CategorySelector handles free text entry.
-  // distinctCategories?: string[]; 
-  // distinctSubCategories?: string[];
 }
+
+interface ChecklistItemWrapperProps {
+  item: ChecklistItemType;
+  onToggle: (id: string) => void;
+  onTextChange: (id: string, newText: string) => void;
+  onDelete: (id: string) => void;
+  isEditing: boolean;
+}
+
+const SortableChecklistItem: React.FC<ChecklistItemWrapperProps> = (props) => {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+  } = useSortable({ id: props.item.id });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    touchAction: 'manipulation',
+  };
+
+  return (
+    <div ref={setNodeRef} style={style} {...attributes} {...listeners}>
+      <ChecklistItem {...props} />
+    </div>
+  );
+};
 
 const TodoForm: React.FC<TodoFormProps> = ({ initialData }) => {
   const router = useRouter();
@@ -78,7 +119,7 @@ const TodoForm: React.FC<TodoFormProps> = ({ initialData }) => {
       category,
       subCategory,
       assignee,
-      checklist: checklist.filter(item => item.text.trim() !== ''), // Remove empty checklist items
+      checklist: checklist.filter(item => item.text.trim() !== ''),
     };
 
     try {
@@ -96,9 +137,8 @@ const TodoForm: React.FC<TodoFormProps> = ({ initialData }) => {
         throw new Error(errorData.message || 'Failed to save todo');
       }
 
-      // const savedTodo = await response.json();
-      router.push('/'); // Redirect to home page after successful submission
-      router.refresh(); // Refresh server components
+      router.push('/');
+      router.refresh();
 
     } catch (err: any) {
       setError(err.message);
@@ -106,7 +146,7 @@ const TodoForm: React.FC<TodoFormProps> = ({ initialData }) => {
       setIsSubmitting(false);
     }
   };
-  
+
   const handleDelete = async () => {
     if (!initialData || !initialData.id) return;
     if (!confirm("Are you sure you want to delete this todo?")) return;
@@ -129,6 +169,20 @@ const TodoForm: React.FC<TodoFormProps> = ({ initialData }) => {
     }
   };
 
+  const sensors = useSensors(useSensor(PointerSensor, {
+    activationConstraint: {
+      distance: 5,
+    },
+  }));
+
+  const handleDragEnd = (event: any) => {
+    const { active, over } = event;
+    if (active.id !== over?.id) {
+      const oldIndex = checklist.findIndex(i => i.id === active.id);
+      const newIndex = checklist.findIndex(i => i.id === over?.id);
+      setChecklist((items) => arrayMove(items, oldIndex, newIndex));
+    }
+  };
 
   return (
     <form onSubmit={handleSubmit}>
@@ -153,14 +207,13 @@ const TodoForm: React.FC<TodoFormProps> = ({ initialData }) => {
           onChange={(e) => setDescription(e.target.value)}
         />
       </div>
-      
+
       <CategorySelector
         id="category"
         label="Category"
         value={category}
         onChange={setCategory}
         placeholder="e.g., Work, Personal"
-        // suggestions={distinctCategories}
       />
 
       <CategorySelector
@@ -169,7 +222,6 @@ const TodoForm: React.FC<TodoFormProps> = ({ initialData }) => {
         value={subCategory}
         onChange={setSubCategory}
         placeholder="e.g., Project X, Groceries"
-        // suggestions={distinctSubCategories}
       />
 
       <div className="form-group">
@@ -189,17 +241,30 @@ const TodoForm: React.FC<TodoFormProps> = ({ initialData }) => {
 
       <div className="form-group">
         <h3>Checklist</h3>
-        {checklist.map((item) => (
-          <ChecklistItem
-            key={item.id}
-            item={item}
-            onToggle={handleChecklistToggle}
-            onTextChange={handleChecklistChange}
-            onDelete={handleDeleteChecklistItem}
-            isEditing={true} // Always allow editing text in form
-          />
-        ))}
-        <button type="button" onClick={handleAddChecklistItem} className="button button-secondary" style={{marginTop: 'var(--spacing-unit)'}}>
+        <DndContext
+          sensors={sensors}
+          collisionDetection={closestCenter}
+          onDragEnd={handleDragEnd}
+        >
+          <SortableContext items={checklist.map(item => item.id)} strategy={verticalListSortingStrategy}>
+            {checklist.map((item) => (
+              <SortableChecklistItem
+                key={item.id}
+                item={item}
+                onToggle={handleChecklistToggle}
+                onTextChange={handleChecklistChange}
+                onDelete={handleDeleteChecklistItem}
+                isEditing={true}
+              />
+            ))}
+          </SortableContext>
+        </DndContext>
+        <button
+          type="button"
+          onClick={handleAddChecklistItem}
+          className="button button-secondary"
+          style={{ marginTop: 'var(--spacing-unit)' }}
+        >
           Add Checklist Item
         </button>
       </div>
@@ -213,8 +278,8 @@ const TodoForm: React.FC<TodoFormProps> = ({ initialData }) => {
             Delete Todo
           </button>
         )}
-         <button type="button" className="button button-secondary" onClick={() => router.back()} disabled={isSubmitting}>
-            Cancel
+        <button type="button" className="button button-secondary" onClick={() => router.back()} disabled={isSubmitting}>
+          Cancel
         </button>
       </div>
     </form>
