@@ -19,9 +19,11 @@ export default function RootLayout({
           <h1>
             <Link href="/">Todozz</Link>
           </h1>
-          <nav>
-            <Link href="/" className="nav-link">Home</Link>
-            <Link href="/todo/new" className="nav-link button">New Todo</Link>
+          <nav className="nav-actions">
+            <Link href="/" className="nav-icon" aria-label="Home">
+              🏠
+            </Link>
+            <Link href="/todo/new" className="button">New Todo</Link>
           </nav>
         </header>
         <main>{children}</main>
