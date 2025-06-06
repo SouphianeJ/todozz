@@ -243,3 +243,28 @@ p {
     margin-top: var(--spacing-unit);
   }
 }
+
+.nav-actions {
+  display: flex;
+  align-items: center;
+  gap: calc(var(--spacing-unit) * 1.5);
+}
+
+.nav-icon {
+  font-size: 1.25rem;
+  text-decoration: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: calc(var(--spacing-unit) * 1);
+  background-color: var(--secondary-color);
+  color: white;
+  border-radius: 50%;
+  width: 40px;
+  height: 40px;
+  transition: background-color 0.2s ease-in-out;
+}
+
+.nav-icon:hover {
+  background-color: #333;
+}
