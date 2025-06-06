@@ -257,7 +257,7 @@ p {
   align-items: center;
   justify-content: center;
   padding: calc(var(--spacing-unit) * 1);
-  background-color: var(--secondary-color);
+  background-color: var(--background-color);
   color: white;
   border-radius: 50%;
   width: 40px;
