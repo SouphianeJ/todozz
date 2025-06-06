@@ -9,6 +9,7 @@ interface ChecklistItemProps {
   onTextChange: (id: string, newText: string) => void;
   onDelete: (id: string) => void;
   isEditing: boolean;
+  dragHandleProps?: React.HTMLAttributes<HTMLButtonElement>; // 👈 nouveau
 }
 
 const ChecklistItem: React.FC<ChecklistItemProps> = ({
@@ -17,9 +18,28 @@ const ChecklistItem: React.FC<ChecklistItemProps> = ({
   onTextChange,
   onDelete,
   isEditing,
+  dragHandleProps,
 }) => {
   return (
-    <div className="checklist-item">
+    <div className="checklist-item" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+      {isEditing && (
+        <button
+          type="button"
+          {...dragHandleProps}
+          aria-label="Drag to reorder"
+          style={{
+            cursor: 'grab',
+            background: 'none',
+            border: 'none',
+            padding: 0,
+            fontSize: '1.25rem',
+            lineHeight: 1,
+            userSelect: 'none',
+          }}
+        >
+          ☰
+        </button>
+      )}
       <input
         type="checkbox"
         checked={item.checked}
@@ -40,9 +60,9 @@ const ChecklistItem: React.FC<ChecklistItemProps> = ({
         </span>
       )}
       {isEditing && (
-         <button type="button" onClick={() => onDelete(item.id)} aria-label={`Delete ${item.text}`}>
-           &times;
-         </button>
+        <button type="button" onClick={() => onDelete(item.id)} aria-label={`Delete ${item.text}`}>
+          &times;
+        </button>
       )}
     </div>
   );
