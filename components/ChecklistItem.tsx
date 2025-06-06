@@ -8,7 +8,7 @@ interface ChecklistItemProps {
   onToggle: (id: string) => void;
   onTextChange: (id: string, newText: string) => void;
   onDelete: (id: string) => void;
-  isEditing: boolean; // To control if text input is enabled
+  isEditing: boolean;
 }
 
 const ChecklistItem: React.FC<ChecklistItemProps> = ({
