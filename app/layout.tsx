@@ -5,6 +5,23 @@ import './globals.css';
 export const metadata: Metadata = {
   title: 'Todozz App',
   description: 'Manage your todos efficiently',
+  icons: {
+    icon: [
+      { url: '/icon.png', type: 'image/png', sizes: '192x192' },
+    ],
+    apple: [{ url: '/icon.png', type: 'image/png', sizes: '192x192' }],
+  },
+  openGraph: {
+    title: 'Todozz App',
+    description: 'Manage your todos efficiently',
+    images: [{ url: '/opengraph-image.png', width: 1200, height: 630 }],
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'Todozz App',
+    description: 'Manage your todos efficiently',
+    images: ['/opengraph-image.png'],
+  },
 };
 
 export default function RootLayout({

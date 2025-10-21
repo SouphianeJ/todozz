@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 
 interface CategoryPickerProps {
   id: string;
@@ -26,46 +26,96 @@ const CategoryPicker: React.FC<CategoryPickerProps> = ({
   const [fetchError, setFetchError] = useState<string | null>(null);
   const [isAddingNew, setIsAddingNew] = useState(false);
   const [previousSelection, setPreviousSelection] = useState('');
+  const isMountedRef = useRef(true);
+  const isFetchingRef = useRef(false);
+  const categoriesRef = useRef<string[]>([]);
 
   useEffect(() => {
-    let isMounted = true;
+    categoriesRef.current = categories;
+  }, [categories]);
 
-    const fetchCategories = async () => {
+  useEffect(() => {
+    return () => {
+      isMountedRef.current = false;
+    };
+  }, []);
+
+  const loadCategories = useCallback(async () => {
+    if (isFetchingRef.current) {
+      return;
+    }
+
+    isFetchingRef.current = true;
+
+    if (isMountedRef.current && categoriesRef.current.length === 0) {
       setLoading(true);
+    }
+
+    if (isMountedRef.current) {
       setFetchError(null);
-      try {
-        const res = await fetch('/api/categories');
-        if (!res.ok) {
-          throw new Error('Failed to load categories');
-        }
-        const data: { categories: string[] } = await res.json();
-        if (isMounted) {
-          const uniqueCategories = Array.from(
-            new Set(
-              (data.categories || [])
-                .map((category) => normalizeCategory(category))
-                .filter((category) => category.length > 0)
-            )
-          ).sort((a, b) => a.localeCompare(b));
-          setCategories(uniqueCategories);
-        }
-      } catch (error: any) {
-        if (isMounted) {
-          setFetchError(error.message || 'Unable to load categories');
-        }
-      } finally {
-        if (isMounted) {
-          setLoading(false);
-        }
+    }
+
+    try {
+      const res = await fetch('/api/categories', { cache: 'no-store' });
+      if (!res.ok) {
+        throw new Error('Failed to load categories');
+      }
+      const data: { categories: string[] } = await res.json();
+      const uniqueCategories = Array.from(
+        new Set(
+          (data.categories || [])
+            .map((category) => normalizeCategory(category))
+            .filter((category) => category.length > 0)
+        )
+      ).sort((a, b) => a.localeCompare(b));
+
+      if (isMountedRef.current) {
+        setCategories((prev) => {
+          if (
+            prev.length === uniqueCategories.length &&
+            prev.every((value, index) => value === uniqueCategories[index])
+          ) {
+            return prev;
+          }
+          return uniqueCategories;
+        });
+      }
+    } catch (error: any) {
+      if (!isMountedRef.current) {
+        return;
+      }
+      setFetchError(error?.message || 'Unable to load categories');
+    } finally {
+      isFetchingRef.current = false;
+      if (isMountedRef.current) {
+        setLoading(false);
+      }
+    }
+  }, []);
+
+  useEffect(() => {
+    loadCategories();
+  }, [loadCategories]);
+
+  useEffect(() => {
+    const handleFocus = () => {
+      loadCategories();
+    };
+
+    const handleVisibilityChange = () => {
+      if (!document.hidden) {
+        loadCategories();
       }
     };
 
-    fetchCategories();
+    window.addEventListener('focus', handleFocus);
+    document.addEventListener('visibilitychange', handleVisibilityChange);
 
     return () => {
-      isMounted = false;
+      window.removeEventListener('focus', handleFocus);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
-  }, []);
+  }, [loadCategories]);
 
   useEffect(() => {
     if (!value) {
