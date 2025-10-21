@@ -154,6 +154,85 @@ p {
   padding: calc(var(--spacing-unit) * 2);
   margin-bottom: calc(var(--spacing-unit) * 2);
   box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+  position: relative;
+}
+
+.todo-item-card-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: calc(var(--spacing-unit) * 1.5);
+}
+
+.todo-item-card-menu-wrapper {
+  position: relative;
+}
+
+.todo-item-card-menu-button {
+  background: transparent;
+  border: none;
+  color: #777;
+  cursor: pointer;
+  font-size: 1.25rem;
+  line-height: 1;
+  padding: calc(var(--spacing-unit) * 0.5);
+  border-radius: calc(var(--spacing-unit) / 2);
+  transition: background-color 0.2s ease-in-out;
+}
+
+.todo-item-card-menu-button:hover,
+.todo-item-card-menu-button:focus {
+  background-color: rgba(0, 0, 0, 0.05);
+  outline: none;
+}
+
+.todo-item-card-menu {
+  position: absolute;
+  right: 0;
+  margin-top: calc(var(--spacing-unit) * 0.5);
+  background-color: #fff;
+  border: 1px solid var(--border-color);
+  border-radius: calc(var(--spacing-unit) / 2);
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+  display: flex;
+  flex-direction: column;
+  min-width: 160px;
+  z-index: 10;
+  padding: calc(var(--spacing-unit) * 0.5) 0;
+}
+
+.todo-item-card-menu-item {
+  display: flex;
+  align-items: center;
+  gap: calc(var(--spacing-unit) * 0.75);
+  background: none;
+  border: none;
+  width: 100%;
+  text-align: left;
+  padding: calc(var(--spacing-unit) * 1);
+  font-size: 0.9rem;
+  color: var(--secondary-color);
+  cursor: pointer;
+  transition: background-color 0.2s ease-in-out;
+}
+
+.todo-item-card-menu-item:hover:not(:disabled),
+.todo-item-card-menu-item:focus-visible:not(:disabled) {
+  background-color: rgba(0, 0, 0, 0.05);
+  outline: none;
+}
+
+.todo-item-card-menu-item:disabled {
+  cursor: not-allowed;
+  color: #bbb;
+}
+
+.todo-item-card-menu-item span[aria-hidden="true"] {
+  font-size: 1rem;
+}
+
+.todo-item-card-menu-item-label {
+  flex: 1;
 }
 
 .todo-item-card h3 {
@@ -175,6 +254,11 @@ p {
 
 .todo-item-card .actions {
   margin-top: var(--spacing-unit);
+}
+
+.error-message {
+  color: var(--danger-color);
+  margin-bottom: var(--spacing-unit);
 }
 
 

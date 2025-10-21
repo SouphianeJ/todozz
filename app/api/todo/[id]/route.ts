@@ -20,6 +20,29 @@ function toIsoDate(ts: any): string {
   return new Date(ts).toISOString();
 }
 
+function resolvePosition(data: any): number {
+  if (typeof data.position === 'number') {
+    return data.position;
+  }
+
+  const createdAtSource = data.createdAt;
+
+  if (createdAtSource instanceof Timestamp) {
+    return createdAtSource.toDate().getTime();
+  }
+
+  if (typeof createdAtSource === 'object' && createdAtSource && '_seconds' in createdAtSource) {
+    return new Timestamp(createdAtSource._seconds, createdAtSource._nanoseconds).toDate().getTime();
+  }
+
+  const createdAtDate = createdAtSource ? new Date(createdAtSource) : null;
+  if (createdAtDate && !Number.isNaN(createdAtDate.getTime())) {
+    return createdAtDate.getTime();
+  }
+
+  return Date.now();
+}
+
 // On retourne désormais un TodoApiResponse (ISO strings) et non un TodoDocument
 function serializeTodoDocument(data: any, id: string): TodoApiResponse {
   const checklistWithIds: ChecklistItemType[] = (data.checklist || []).map((item: any, index: number) => ({
@@ -35,6 +58,7 @@ function serializeTodoDocument(data: any, id: string): TodoApiResponse {
     subCategory: data.subCategory,
     assignee: data.assignee,
     checklist: checklistWithIds,
+    position: resolvePosition(data),
     createdAt: toIsoDate(data.createdAt),
     updatedAt: toIsoDate(data.updatedAt),
   };
