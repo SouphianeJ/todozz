@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { Todo, ChecklistItemType, ASSIGNEES, Assignee, TodoDocument } from '@/types';
 import ChecklistItem from './ChecklistItem';
 import CategorySelector from './CategorySelector';
+import CategoryPicker from './CategoryPicker';
 
 import {
   TouchSensor,
@@ -99,11 +100,13 @@ const TodoForm: React.FC<TodoFormProps> = ({ initialData }) => {
   // ✅ Auto-save logic
   useEffect(() => {
     const interval = setInterval(() => {
+      const sanitizedCategory = category.trim();
+      const sanitizedSubCategory = subCategory.trim();
       const currentData: Todo = {
         title,
         description,
-        category,
-        subCategory,
+        category: sanitizedCategory,
+        subCategory: sanitizedSubCategory,
         assignee,
         checklist: checklist.filter((item) => item.text.trim() !== ''),
       };
@@ -159,17 +162,27 @@ const TodoForm: React.FC<TodoFormProps> = ({ initialData }) => {
     setIsSubmitting(true);
     setError(null);
 
-    if (!title.trim()) {
+    const trimmedTitle = title.trim();
+    const trimmedCategory = category.trim();
+    const trimmedSubCategory = subCategory.trim();
+
+    if (!trimmedTitle) {
       setError('Title is required.');
       setIsSubmitting(false);
       return;
     }
 
+    if (!trimmedCategory) {
+      setError('Category is required.');
+      setIsSubmitting(false);
+      return;
+    }
+
     const todoData: Todo = {
-      title,
+      title: trimmedTitle,
       description,
-      category,
-      subCategory,
+      category: trimmedCategory,
+      subCategory: trimmedSubCategory,
       assignee,
       checklist: checklist.filter((item) => item.text.trim() !== ''),
     };
@@ -266,7 +279,7 @@ const TodoForm: React.FC<TodoFormProps> = ({ initialData }) => {
         />
       </div>
 
-      <CategorySelector
+      <CategoryPicker
         id="category"
         label="Category"
         value={category}

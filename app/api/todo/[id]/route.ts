@@ -54,8 +54,12 @@ function serializeTodoDocument(data: any, id: string): TodoApiResponse {
     id,
     title: data.title,
     description: data.description,
-    category: data.category,
-    subCategory: data.subCategory,
+    category:
+      typeof data.category === 'string' ? data.category.trim() : data.category,
+    subCategory:
+      typeof data.subCategory === 'string'
+        ? data.subCategory.trim()
+        : data.subCategory,
     assignee: data.assignee,
     checklist: checklistWithIds,
     position: resolvePosition(data),
@@ -99,13 +103,67 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
       }));
     }
 
-    const updatePayload = {
-      ...todoData,
-      ...(checklistWithIds && { checklist: checklistWithIds }),
+    const docRef = todosCollection.doc(params.id);
+    const docSnap = await docRef.get();
+
+    if (!docSnap.exists) {
+      return NextResponse.json({ message: 'Todo not found' }, { status: 404 });
+    }
+
+    const existingData = docSnap.data() || {};
+
+    const updatePayload: Record<string, any> = {
       updatedAt: FieldValue.serverTimestamp(),
     };
 
-    const docRef = todosCollection.doc(params.id);
+    if (todoData.title !== undefined) {
+      updatePayload.title = todoData.title.trim();
+    }
+
+    if (todoData.description !== undefined) {
+      updatePayload.description = todoData.description;
+    }
+
+    if (todoData.assignee !== undefined) {
+      updatePayload.assignee = todoData.assignee;
+    }
+
+    if (checklistWithIds) {
+      updatePayload.checklist = checklistWithIds;
+    }
+
+    let positionOverride: number | undefined;
+
+    if (todoData.category !== undefined) {
+      const trimmedCategory = todoData.category.trim();
+      updatePayload.category = trimmedCategory;
+
+      const previousCategory =
+        typeof existingData.category === 'string'
+          ? existingData.category.trim()
+          : '';
+
+      if (
+        trimmedCategory &&
+        trimmedCategory.length > 0 &&
+        trimmedCategory !== previousCategory
+      ) {
+        positionOverride = -Date.now();
+      }
+    }
+
+    if (todoData.subCategory !== undefined) {
+      updatePayload.subCategory = todoData.subCategory.trim();
+    }
+
+    if (todoData.position !== undefined) {
+      updatePayload.position = todoData.position;
+    }
+
+    if (positionOverride !== undefined) {
+      updatePayload.position = positionOverride;
+    }
+
     await docRef.update(updatePayload);
 
     return NextResponse.json({ id: params.id, message: 'Todo updated successfully' });

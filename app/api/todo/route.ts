@@ -49,8 +49,12 @@ function serializeTodoDocument(docSnap: FirebaseFirestore.DocumentSnapshot): Tod
     id: docSnap.id,
     title: data.title,
     description: data.description,
-    category: data.category,
-    subCategory: data.subCategory,
+    category:
+      typeof data.category === 'string' ? data.category.trim() : data.category,
+    subCategory:
+      typeof data.subCategory === 'string'
+        ? data.subCategory.trim()
+        : data.subCategory,
     assignee: data.assignee,
     checklist: checklistWithIds,
     position: resolvePosition(data),
