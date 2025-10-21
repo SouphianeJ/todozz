@@ -16,11 +16,13 @@ export interface Todo {
   subCategory: string;
   assignee: Assignee;
   checklist: ChecklistItemType[];
+  position?: number;
   // Timestamps will be added by Firestore
 }
 
 export interface TodoDocument extends Todo {
   id: string;
+  position: number;
   createdAt: Timestamp;
   updatedAt: Timestamp;
 }

@@ -15,6 +15,29 @@ function toIsoDate(ts: any): string {
 }
 
 // Sérialise un document Firestore en TodoApiResponse
+function resolvePosition(data: any): number {
+  if (typeof data.position === 'number') {
+    return data.position;
+  }
+
+  const createdAtSource = data.createdAt;
+
+  if (createdAtSource instanceof Timestamp) {
+    return createdAtSource.toDate().getTime();
+  }
+
+  if (typeof createdAtSource === 'object' && createdAtSource && '_seconds' in createdAtSource) {
+    return new Timestamp(createdAtSource._seconds, createdAtSource._nanoseconds).toDate().getTime();
+  }
+
+  const createdAtDate = createdAtSource ? new Date(createdAtSource) : null;
+  if (createdAtDate && !Number.isNaN(createdAtDate.getTime())) {
+    return createdAtDate.getTime();
+  }
+
+  return Date.now();
+}
+
 function serializeTodoDocument(docSnap: FirebaseFirestore.DocumentSnapshot): TodoApiResponse {
   const data = docSnap.data()!;
   const checklistWithIds: ChecklistItemType[] = (data.checklist || []).map((item: any, idx: number) => ({
@@ -30,6 +53,7 @@ function serializeTodoDocument(docSnap: FirebaseFirestore.DocumentSnapshot): Tod
     subCategory: data.subCategory,
     assignee: data.assignee,
     checklist: checklistWithIds,
+    position: resolvePosition(data),
     createdAt: toIsoDate(data.createdAt),
     updatedAt: toIsoDate(data.updatedAt),
   };
@@ -37,15 +61,23 @@ function serializeTodoDocument(docSnap: FirebaseFirestore.DocumentSnapshot): Tod
 
 export async function GET(request: NextRequest) {
   try {
-    const snapshot = await todosCollection.get();
+    const { searchParams } = new URL(request.url);
+    const category = searchParams.get('category');
+
+    let queryRef: FirebaseFirestore.Query = todosCollection;
+    if (category) {
+      queryRef = todosCollection.where('category', '==', category);
+    }
+
+    const snapshot = await queryRef.get();
     const todos: TodoApiResponse[] = [];
 
     snapshot.forEach((docSnap) => {
       todos.push(serializeTodoDocument(docSnap));
     });
 
-    // Tri décroissant par date de création
-    todos.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+    // Tri décroissant par position pour garder les items les plus "haut" en premier
+    todos.sort((a, b) => b.position - a.position);
 
     return NextResponse.json(todos);
   } catch (error) {
@@ -69,6 +101,7 @@ export async function POST(request: NextRequest) {
     const newTodo = {
       ...todoData,
       checklist: checklistWithIds,
+      position: typeof todoData.position === 'number' ? todoData.position : Date.now(),
       createdAt: FieldValue.serverTimestamp(),
       updatedAt: FieldValue.serverTimestamp(),
     };

@@ -16,6 +16,7 @@ function TodoListComponent() {
   const [error, setError] = useState<string | null>(null);
   const [filterCategory, setFilterCategory] = useState(searchParams.get('category') || '');
   const [distinctCategories, setDistinctCategories] = useState<string[]>([]);
+  const [actionError, setActionError] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchTodos = async () => {
@@ -31,6 +32,7 @@ function TodoListComponent() {
         }
         const data: TodoApiResponse[] = await res.json();
         setTodos(data);
+        setActionError(null);
 
         // Extract distinct categories for the filter selector
         // Fetch all todos once to populate categories, or make a separate endpoint
@@ -76,6 +78,62 @@ function TodoListComponent() {
     router.push('/');
   };
 
+  const handleMoveTodo = async (todoId: string, direction: 'up' | 'down') => {
+    setActionError(null);
+
+    const currentIndex = todos.findIndex((todo) => todo.id === todoId);
+    if (currentIndex === -1) {
+      return;
+    }
+
+    const swapIndex = direction === 'up' ? currentIndex - 1 : currentIndex + 1;
+    if (swapIndex < 0 || swapIndex >= todos.length) {
+      return;
+    }
+
+    const currentTodo = todos[currentIndex];
+    const swapTodo = todos[swapIndex];
+    const previousTodos = [...todos];
+
+    const currentPosition = currentTodo.position;
+    const swapPosition = swapTodo.position;
+
+    const optimisticTodos = todos.map((todo, index) => {
+      if (index === currentIndex) {
+        return { ...swapTodo, position: currentPosition };
+      }
+      if (index === swapIndex) {
+        return { ...currentTodo, position: swapPosition };
+      }
+      return todo;
+    });
+
+    setTodos(optimisticTodos);
+
+    try {
+      const [updateCurrent, updateSwap] = await Promise.all([
+        fetch(`/api/todo/${currentTodo.id}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ position: swapPosition }),
+        }),
+        fetch(`/api/todo/${swapTodo.id}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ position: currentPosition }),
+        }),
+      ]);
+
+      if (!updateCurrent.ok || !updateSwap.ok) {
+        throw new Error('Failed to persist reorder');
+      }
+    } catch (persistError) {
+      console.error('Failed to reorder todo:', persistError);
+      setTodos(previousTodos);
+      setActionError('Failed to reorder todo. Please try again.');
+    }
+  };
+
 
   if (loading) return <p>Loading todos...</p>;
   if (error) return <p>Error loading todos: {error}</p>;
@@ -83,6 +141,9 @@ function TodoListComponent() {
   return (
     <div>
       <h2>My Todos</h2>
+      {actionError && (
+        <p className="error-message" role="alert">{actionError}</p>
+      )}
       <div style={{ marginBottom: 'var(--spacing-unit)', display: 'flex', gap: 'var(--spacing-unit)', alignItems: 'center' }}>
         <CategorySelector
             id="categoryFilter"
@@ -103,8 +164,14 @@ function TodoListComponent() {
         <p>No todos found. <Link href="/todo/new">Create one?</Link></p>
       ) : (
         <ul className="todo-list">
-          {todos.map((todo) => (
-            <TodoItem key={todo.id} todo={todo} />
+          {todos.map((todo, index) => (
+            <TodoItem
+              key={todo.id}
+              todo={todo}
+              onMove={(direction) => handleMoveTodo(todo.id, direction)}
+              disableMoveUp={index === 0}
+              disableMoveDown={index === todos.length - 1}
+            />
           ))}
         </ul>
       )}
