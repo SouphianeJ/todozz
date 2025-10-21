@@ -1,12 +1,21 @@
-'use client'; // For useState, useEffect, and event handlers
+'use client';
 
-import React, { useEffect, useState, Suspense } from 'react';
+import React, { Suspense, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
-import { useSearchParams, useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import TodoItem from '@/components/TodoItem';
 import { TodoApiResponse } from '@/types';
-import CategorySelector from '@/components/CategorySelector';
 
+const CATEGORY_ALL = 'All';
+const CATEGORY_UNCATEGORIZED = 'Uncategorized';
+
+const getCategoryLabel = (category?: string | null) => {
+  if (typeof category !== 'string') {
+    return CATEGORY_UNCATEGORIZED;
+  }
+  const trimmed = category.trim();
+  return trimmed.length > 0 ? trimmed : CATEGORY_UNCATEGORIZED;
+};
 
 function TodoListComponent() {
   const searchParams = useSearchParams();
@@ -14,8 +23,8 @@ function TodoListComponent() {
   const [todos, setTodos] = useState<TodoApiResponse[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [filterCategory, setFilterCategory] = useState(searchParams.get('category') || '');
-  const [distinctCategories, setDistinctCategories] = useState<string[]>([]);
+  const [categories, setCategories] = useState<string[]>([]);
+  const [activeCategory, setActiveCategory] = useState<string>(CATEGORY_ALL);
   const [actionError, setActionError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -23,104 +32,142 @@ function TodoListComponent() {
       setLoading(true);
       setError(null);
       try {
-        const currentCategory = searchParams.get('category') || '';
-        setFilterCategory(currentCategory); // Sync state with URL
-
-        const res = await fetch(`/api/todo${currentCategory ? `?category=${currentCategory}` : ''}`);
+        const res = await fetch('/api/todo');
         if (!res.ok) {
           throw new Error('Failed to fetch todos');
         }
         const data: TodoApiResponse[] = await res.json();
-        setTodos(data);
+
+        const sanitizedTodos = data.map((todo) => ({
+          ...todo,
+          category:
+            typeof todo.category === 'string' ? todo.category.trim() : todo.category,
+          subCategory:
+            typeof todo.subCategory === 'string'
+              ? todo.subCategory.trim()
+              : todo.subCategory,
+        }));
+
+        setTodos(sanitizedTodos);
         setActionError(null);
 
-        // Extract distinct categories for the filter selector
-        // Fetch all todos once to populate categories, or make a separate endpoint
-        // For simplicity, deriving from current full list if no filter, or from filtered list
-        if (!currentCategory) { // if no filter is active, all todos are fetched
-            const allCategories = Array.from(new Set(data.map(todo => todo.category).filter(Boolean)));
-            setDistinctCategories(allCategories);
-        } else {
-            // If a category is filtered, we might want to show all available categories.
-            // This requires a separate fetch or fetching all initially and then filtering client-side
-            // For now, let's fetch all categories if distinctCategories is empty
-            if (distinctCategories.length === 0) {
-                const allTodosRes = await fetch('/api/todo');
-                if (allTodosRes.ok) {
-                    const allTodosData: TodoApiResponse[] = await allTodosRes.json();
-                    const allCategories = Array.from(new Set(allTodosData.map(todo => todo.category).filter(Boolean)));
-                    setDistinctCategories(allCategories);
-                }
-            }
-        }
-
+        const categorySet = new Set<string>();
+        sanitizedTodos.forEach((todo) => {
+          categorySet.add(getCategoryLabel(todo.category));
+        });
+        const sortedCategories = Array.from(categorySet).sort((a, b) =>
+          a.localeCompare(b)
+        );
+        setCategories(sortedCategories);
       } catch (err: any) {
-        setError(err.message);
+        setError(err.message || 'Failed to fetch todos');
       } finally {
         setLoading(false);
       }
     };
 
     fetchTodos();
-  }, [searchParams, distinctCategories.length]); // Re-fetch if searchParams change
+  }, []);
 
-  const handleCategoryFilterChange = (category: string) => {
-    setFilterCategory(category);
-    if (category) {
-      router.push(`/?category=${encodeURIComponent(category)}`);
-    } else {
-      router.push('/');
+  useEffect(() => {
+    const categoryFromUrl = searchParams.get('category');
+    if (!categoryFromUrl) {
+      setActiveCategory(CATEGORY_ALL);
+      return;
     }
-  };
-  
-  const clearFilter = () => {
-    setFilterCategory('');
-    router.push('/');
+
+    const normalized = categoryFromUrl.trim();
+    if (!normalized) {
+      setActiveCategory(CATEGORY_ALL);
+      return;
+    }
+
+    if (normalized === CATEGORY_UNCATEGORIZED) {
+      setActiveCategory(CATEGORY_UNCATEGORIZED);
+      return;
+    }
+
+    if (categories.includes(normalized)) {
+      setActiveCategory(normalized);
+      return;
+    }
+
+    setActiveCategory(CATEGORY_ALL);
+  }, [searchParams, categories]);
+
+  const todosByCategory = useMemo(() => {
+    const grouped = new Map<string, TodoApiResponse[]>();
+    const sortedTodos = [...todos].sort((a, b) => b.position - a.position);
+    sortedTodos.forEach((todo) => {
+      const categoryKey = getCategoryLabel(todo.category);
+      if (!grouped.has(categoryKey)) {
+        grouped.set(categoryKey, []);
+      }
+      grouped.get(categoryKey)!.push(todo);
+    });
+    return grouped;
+  }, [todos]);
+
+  const handleTabChange = (categoryName: string) => {
+    if (categoryName === activeCategory) {
+      return;
+    }
+    setActiveCategory(categoryName);
+    setActionError(null);
+
+    if (categoryName === CATEGORY_ALL) {
+      router.push('/');
+    } else {
+      router.push(`/?category=${encodeURIComponent(categoryName)}`);
+    }
   };
 
   const handleMoveTodo = async (todoId: string, direction: 'up' | 'down') => {
     setActionError(null);
 
-    const currentIndex = todos.findIndex((todo) => todo.id === todoId);
+    if (activeCategory === CATEGORY_ALL) {
+      setActionError('Select a category tab to reorder todos.');
+      return;
+    }
+
+    const categoryTodos = (todosByCategory.get(activeCategory) || []).slice();
+    const currentIndex = categoryTodos.findIndex((todo) => todo.id === todoId);
     if (currentIndex === -1) {
       return;
     }
 
     const swapIndex = direction === 'up' ? currentIndex - 1 : currentIndex + 1;
-    if (swapIndex < 0 || swapIndex >= todos.length) {
+    if (swapIndex < 0 || swapIndex >= categoryTodos.length) {
       return;
     }
 
-    const currentTodo = todos[currentIndex];
-    const swapTodo = todos[swapIndex];
+    const currentTodo = categoryTodos[currentIndex];
+    const swapTodo = categoryTodos[swapIndex];
     const previousTodos = [...todos];
 
-    const currentPosition = currentTodo.position;
-    const swapPosition = swapTodo.position;
-
-    const optimisticTodos = todos.map((todo, index) => {
-      if (index === currentIndex) {
-        return { ...swapTodo, position: currentPosition };
+    const updatedTodos = todos.map((todo) => {
+      if (todo.id === currentTodo.id) {
+        return { ...todo, position: swapTodo.position };
       }
-      if (index === swapIndex) {
-        return { ...currentTodo, position: swapPosition };
+      if (todo.id === swapTodo.id) {
+        return { ...todo, position: currentTodo.position };
       }
       return todo;
     });
 
-    setTodos(optimisticTodos);
+    setTodos(updatedTodos);
 
     try {
       const [updateCurrent, updateSwap] = await Promise.all([
         fetch(`/api/todo/${currentTodo.id}`, {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ position: swapPosition }),
+          body: JSON.stringify({ position: swapTodo.position }),
         }),
         fetch(`/api/todo/${swapTodo.id}`, {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ position: currentPosition }),
+          body: JSON.stringify({ position: currentTodo.position }),
         }),
       ]);
 
@@ -134,57 +181,107 @@ function TodoListComponent() {
     }
   };
 
-
   if (loading) return <p>Loading todos...</p>;
   if (error) return <p>Error loading todos: {error}</p>;
+
+  const tabCategories = [CATEGORY_ALL, ...categories.filter((name) => name !== CATEGORY_ALL)];
+
+  const renderTodosForCategory = (categoryName: string) => {
+    if (categoryName === CATEGORY_ALL) {
+      if (todos.length === 0) {
+        return (
+          <p>
+            No todos found. <Link href="/todo/new">Create one?</Link>
+          </p>
+        );
+      }
+
+      return categories.map((category) => {
+        const items = todosByCategory.get(category) || [];
+        if (items.length === 0) {
+          return null;
+        }
+        return (
+          <section key={category} className="category-section">
+            <h3>{category}</h3>
+            <ul className="todo-list">
+              {items.map((todo) => (
+                <TodoItem
+                  key={todo.id}
+                  todo={todo}
+                  onMove={(direction) => handleMoveTodo(todo.id, direction)}
+                  disableMoveUp
+                  disableMoveDown
+                />
+              ))}
+            </ul>
+          </section>
+        );
+      });
+    }
+
+    const items = todosByCategory.get(categoryName) || [];
+    if (items.length === 0) {
+      return (
+        <p>
+          No todos in this category yet.{' '}
+          <Link href="/todo/new">Create one?</Link>
+        </p>
+      );
+    }
+
+    return (
+      <ul className="todo-list">
+        {items.map((todo, index) => (
+          <TodoItem
+            key={todo.id}
+            todo={todo}
+            onMove={(direction) => handleMoveTodo(todo.id, direction)}
+            disableMoveUp={index === 0}
+            disableMoveDown={index === items.length - 1}
+          />
+        ))}
+      </ul>
+    );
+  };
 
   return (
     <div>
       <h2>My Todos</h2>
       {actionError && (
-        <p className="error-message" role="alert">{actionError}</p>
+        <p className="error-message" role="alert">
+          {actionError}
+        </p>
       )}
-      <div style={{ marginBottom: 'var(--spacing-unit)', display: 'flex', gap: 'var(--spacing-unit)', alignItems: 'center' }}>
-        <CategorySelector
-            id="categoryFilter"
-            label="Filter by Category:"
-            value={filterCategory}
-            onChange={handleCategoryFilterChange}
-            suggestions={distinctCategories}
-            placeholder="All Categories"
-        />
-        {filterCategory && (
-            <button onClick={clearFilter} className="button button-secondary" style={{alignSelf: 'flex-end', marginBottom:'calc(var(--spacing-unit) * 0.25)'}}>
-                Clear Filter
+      <div className="category-tabs" role="tablist" aria-label="Todo categories">
+        {tabCategories.map((categoryName) => {
+          const isActive = activeCategory === categoryName;
+          return (
+            <button
+              key={categoryName}
+              type="button"
+              className={`category-tab${isActive ? ' is-active' : ''}`}
+              role="tab"
+              aria-selected={isActive}
+              onClick={() => handleTabChange(categoryName)}
+            >
+              {categoryName}
             </button>
-        )}
+          );
+        })}
       </div>
 
-      {todos.length === 0 ? (
-        <p>No todos found. <Link href="/todo/new">Create one?</Link></p>
-      ) : (
-        <ul className="todo-list">
-          {todos.map((todo, index) => (
-            <TodoItem
-              key={todo.id}
-              todo={todo}
-              onMove={(direction) => handleMoveTodo(todo.id, direction)}
-              disableMoveUp={index === 0}
-              disableMoveDown={index === todos.length - 1}
-            />
-          ))}
-        </ul>
-      )}
+      <div className="category-content" role="tabpanel">
+        {renderTodosForCategory(activeCategory)}
+      </div>
     </div>
   );
 }
 
-
 export default function HomePage() {
-    return (
-        // Suspense boundary for useSearchParams
-        <Suspense fallback={<p>Loading page...</p>}>
-            <TodoListComponent />
-        </Suspense>
-    );
+  return (
+    <Suspense fallback={<p>Loading page...</p>}>
+      <TodoListComponent />
+    </Suspense>
+  );
 }
