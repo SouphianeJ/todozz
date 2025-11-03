@@ -24,19 +24,19 @@ export default async function ExpirationsPage() {
               <tr>
                 <th scope="col">Expiration date</th>
                 <th scope="col">Checklist item</th>
-                <th scope="col">Todo</th>
               </tr>
             </thead>
             <tbody>
               {entries.map((entry) => (
                 <tr key={`${entry.todoId}-${entry.itemId}`}>
-                  <td>{new Date(entry.expirationDate).toLocaleDateString()}</td>
-                  <td>{entry.itemText || 'Untitled item'}</td>
                   <td>
-                    <Link href={`/todo/${entry.todoId}`}>
-                      {entry.todoTitle || 'Untitled todo'}
-                    </Link>
+                    {new Date(entry.expirationDate).toLocaleDateString('fr-FR', {
+                      day: '2-digit',
+                      month: 'long',
+                      year: 'numeric',
+                    })}
                   </td>
+                  <td>{entry.itemText || 'Untitled item'}</td>
                 </tr>
               ))}
             </tbody>
