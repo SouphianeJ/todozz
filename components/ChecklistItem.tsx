@@ -9,6 +9,8 @@ interface ChecklistItemProps {
   onTextChange: (id: string, newText: string) => void;
   onDelete: (id: string) => void;
   isEditing: boolean;
+  onExpirationChange?: (id: string, date: string | null) => void;
+  showExpirationField?: boolean;
   dragHandleProps?: React.HTMLAttributes<HTMLSpanElement>; // Poignée sur span (meilleur contrôle inline)
 }
 
@@ -18,6 +20,8 @@ const ChecklistItem: React.FC<ChecklistItemProps> = ({
   onTextChange,
   onDelete,
   isEditing,
+  onExpirationChange,
+  showExpirationField = false,
   dragHandleProps,
 }) => {
   return (
@@ -30,12 +34,12 @@ const ChecklistItem: React.FC<ChecklistItemProps> = ({
           {...dragHandleProps}
           aria-label="Drag to reorder"
           style={{
-  cursor: 'grab',
-  userSelect: 'none',
-  fontSize: '1.2rem',
-  padding: '0 4px',
-  touchAction: 'none', // 👈 empêche le scroll pendant le drag
-}}
+            cursor: 'grab',
+            userSelect: 'none',
+            fontSize: '1.2rem',
+            padding: '0 4px',
+            touchAction: 'none', // 👈 empêche le scroll pendant le drag
+          }}
         >
           ☰
         </span>
@@ -67,6 +71,17 @@ const ChecklistItem: React.FC<ChecklistItemProps> = ({
         >
           &times;
         </button>
+      )}
+      {isEditing && showExpirationField && item.checked && onExpirationChange && (
+        <input
+          type="date"
+          value={item.expirationDate ?? ''}
+          onChange={(e) => {
+            const value = e.target.value;
+            onExpirationChange(item.id, value ? value : null);
+          }}
+          aria-label={`Set expiration date for ${item.text}`}
+        />
       )}
     </div>
   );

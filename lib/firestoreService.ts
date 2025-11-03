@@ -15,5 +15,7 @@ if (!getApps().length) {
 
 const db = getFirestore();
 const todosCollection = db.collection('todos');
+const courseExpirationsCollection = db.collection('courseExpirations');
 
-export { db, todosCollection, FieldValue, Timestamp };
+export { db, todosCollection, courseExpirationsCollection, FieldValue, Timestamp };
+

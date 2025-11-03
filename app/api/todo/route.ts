@@ -1,6 +1,7 @@
 // File: app/api/todo/route.ts
 import { NextResponse, NextRequest } from 'next/server';
 import { todosCollection, FieldValue, Timestamp } from '@/lib/firestoreService';
+import { syncCourseExpirationEntries } from '@/lib/courseExpirations';
 import { Todo, TodoApiResponse, ChecklistItemType } from '@/types';
 
 // Helper pour convertir n'importe quel Timestamp admin (ou objet sérialisé) en ISO string
@@ -43,6 +44,10 @@ function serializeTodoDocument(docSnap: FirebaseFirestore.DocumentSnapshot): Tod
   const checklistWithIds: ChecklistItemType[] = (data.checklist || []).map((item: any, idx: number) => ({
     ...item,
     id: item.id || `item-${idx}-${Date.now()}`,
+    expirationDate:
+      typeof item.expirationDate === 'string' && item.expirationDate.length > 0
+        ? item.expirationDate
+        : null,
   }));
 
   return {
@@ -100,6 +105,10 @@ export async function POST(request: NextRequest) {
     const checklistWithIds: ChecklistItemType[] = (todoData.checklist || []).map((item, idx) => ({
       ...item,
       id: item.id || `item-${idx}-${Date.now()}`,
+      expirationDate:
+        typeof item.expirationDate === 'string' && item.expirationDate.length > 0
+          ? item.expirationDate
+          : null,
     }));
 
     const newTodo = {
@@ -111,6 +120,13 @@ export async function POST(request: NextRequest) {
     };
 
     const docRef = await todosCollection.add(newTodo);
+    await syncCourseExpirationEntries({
+      todoId: docRef.id,
+      todoTitle: newTodo.title,
+      subCategory: newTodo.subCategory,
+      checklist: checklistWithIds,
+    });
+
     return NextResponse.json({ id: docRef.id, message: 'Todo created successfully' }, { status: 201 });
   } catch (error) {
     console.error('Error creating todo:', error);

@@ -1,6 +1,10 @@
 // File: app/api/todo/[id]/route.ts
 import { NextResponse, NextRequest } from 'next/server';
 import { todosCollection, FieldValue, Timestamp } from '@/lib/firestoreService';
+import {
+  deleteCourseExpirationsForTodo,
+  syncCourseExpirationEntries,
+} from '@/lib/courseExpirations';
 import { Todo, TodoApiResponse, ChecklistItemType } from '@/types';
 
 interface RouteParams {
@@ -48,6 +52,10 @@ function serializeTodoDocument(data: any, id: string): TodoApiResponse {
   const checklistWithIds: ChecklistItemType[] = (data.checklist || []).map((item: any, index: number) => ({
     ...item,
     id: item.id || `item-${index}-${Date.now()}`,
+    expirationDate:
+      typeof item.expirationDate === 'string' && item.expirationDate.length > 0
+        ? item.expirationDate
+        : null,
   }));
 
   return {
@@ -100,6 +108,10 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
       checklistWithIds = todoData.checklist.map((item, index) => ({
         ...item,
         id: item.id || `item-${index}-${Date.now()}`,
+        expirationDate:
+          typeof item.expirationDate === 'string' && item.expirationDate.length > 0
+            ? item.expirationDate
+            : null,
       }));
     }
 
@@ -166,6 +178,35 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
 
     await docRef.update(updatePayload);
 
+    const finalChecklistSource = checklistWithIds || existingData.checklist || [];
+    const finalChecklist: ChecklistItemType[] = (finalChecklistSource as any[]).map(
+      (item: any, index: number) => ({
+        ...item,
+        id: item.id || `item-${index}-${Date.now()}`,
+        expirationDate:
+          typeof item.expirationDate === 'string' && item.expirationDate.length > 0
+            ? item.expirationDate
+            : null,
+      })
+    );
+
+    const finalTitle =
+      typeof updatePayload.title === 'string'
+        ? updatePayload.title
+        : existingData.title;
+
+    const finalSubCategory =
+      typeof updatePayload.subCategory === 'string'
+        ? updatePayload.subCategory
+        : existingData.subCategory;
+
+    await syncCourseExpirationEntries({
+      todoId: params.id,
+      todoTitle: finalTitle,
+      subCategory: finalSubCategory,
+      checklist: finalChecklist,
+    });
+
     return NextResponse.json({ id: params.id, message: 'Todo updated successfully' });
   } catch (error) {
     console.error(`Error updating todo ${params.id}:`, error);
@@ -177,6 +218,7 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
   try {
     const docRef = todosCollection.doc(params.id);
     await docRef.delete();
+    await deleteCourseExpirationsForTodo(params.id);
     return NextResponse.json({ message: 'Todo deleted successfully' });
   } catch (error) {
     console.error(`Error deleting todo ${params.id}:`, error);
