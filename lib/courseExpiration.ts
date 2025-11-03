@@ -13,7 +13,8 @@ const isCoursesSubCategory = (value: unknown): boolean => {
     return false;
   }
 
-  return value.trim().toLowerCase() === 'courses';
+  const normalized = value.trim().toLowerCase();
+  return normalized === 'courses' || normalized === 'course';
 };
 
 const isValidDateString = (value: unknown): value is string => {
