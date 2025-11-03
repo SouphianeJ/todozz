@@ -248,6 +248,11 @@ function TodoListComponent() {
   return (
     <div>
       <h2>My Todos</h2>
+      <div className="course-expiration-link">
+        <Link href="/expirations" className="button button-secondary">
+          View course expirations
+        </Link>
+      </div>
       {actionError && (
         <p className="error-message" role="alert">
           {actionError}

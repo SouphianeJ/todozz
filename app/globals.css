@@ -333,6 +333,11 @@ p {
   padding: calc(var(--spacing-unit) * 0.75); /* Smaller padding */
 }
 
+.checklist-item input[type="date"] {
+  margin-right: var(--spacing-unit);
+  padding: calc(var(--spacing-unit) * 0.5);
+}
+
 .checklist-item .item-text-checked {
   text-decoration: line-through;
   color: #777;
@@ -385,6 +390,39 @@ p {
   display: flex;
   align-items: center;
   gap: calc(var(--spacing-unit) * 1.5);
+}
+
+.course-expiration-link {
+  margin-bottom: calc(var(--spacing-unit) * 2);
+}
+
+.table-container {
+  overflow-x: auto;
+  margin-bottom: calc(var(--spacing-unit) * 3);
+}
+
+.course-expiration-table {
+  width: 100%;
+  border-collapse: collapse;
+  background-color: #fff;
+  border: 1px solid var(--border-color);
+  border-radius: calc(var(--spacing-unit) / 2);
+  overflow: hidden;
+}
+
+.course-expiration-table th,
+.course-expiration-table td {
+  padding: calc(var(--spacing-unit) * 1.5);
+  text-align: left;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.course-expiration-table tbody tr:nth-child(even) {
+  background-color: #f8f9fa;
+}
+
+.course-expiration-table tbody tr:hover {
+  background-color: #eef2f7;
 }
 
 .nav-icon {

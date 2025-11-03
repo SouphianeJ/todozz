@@ -7,6 +7,7 @@ export interface ChecklistItemType {
   id: string; // For unique key in React rendering
   text: string;
   checked: boolean;
+  expirationDate?: string | null;
 }
 
 export interface Todo {
