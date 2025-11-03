@@ -43,11 +43,72 @@ function resolvePosition(data: any): number {
   return Date.now();
 }
 
+function formatDateInput(date: Date | null): string | null {
+  if (!(date instanceof Date)) {
+    return null;
+  }
+
+  const time = date.getTime();
+  if (!Number.isFinite(time)) {
+    return null;
+  }
+
+  return new Date(time).toISOString().slice(0, 10);
+}
+
+function normalizeExpirationDate(value: any): string | null {
+  if (value === null || value === undefined) {
+    return null;
+  }
+
+  if (value instanceof Timestamp) {
+    return formatDateInput(value.toDate());
+  }
+
+  if (typeof value === 'object') {
+    if (typeof value.toDate === 'function') {
+      return formatDateInput(value.toDate());
+    }
+
+    if (typeof value._seconds === 'number') {
+      const nanos = typeof value._nanoseconds === 'number' ? value._nanoseconds : 0;
+      return formatDateInput(new Timestamp(value._seconds, nanos).toDate());
+    }
+
+    if (typeof value.seconds === 'number') {
+      const milliseconds =
+        value.seconds * 1000 + Math.floor((typeof value.nanoseconds === 'number' ? value.nanoseconds : 0) / 1_000_000);
+      return formatDateInput(new Date(milliseconds));
+    }
+  }
+
+  if (typeof value === 'string') {
+    const trimmed = value.trim();
+    if (!trimmed) {
+      return null;
+    }
+
+    if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) {
+      return trimmed;
+    }
+
+    const parsed = Date.parse(trimmed);
+    if (!Number.isFinite(parsed)) {
+      return null;
+    }
+
+    return formatDateInput(new Date(parsed));
+  }
+
+  return null;
+}
+
 // On retourne désormais un TodoApiResponse (ISO strings) et non un TodoDocument
 function serializeTodoDocument(data: any, id: string): TodoApiResponse {
   const checklistWithIds: ChecklistItemType[] = (data.checklist || []).map((item: any, index: number) => ({
     ...item,
     id: item.id || `item-${index}-${Date.now()}`,
+    expirationDate: normalizeExpirationDate(item.expirationDate),
   }));
 
   return {

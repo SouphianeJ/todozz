@@ -30,6 +30,76 @@ const isCourseSubCategory = (value: string): boolean => {
   return normalized === 'courses' || normalized === 'course';
 };
 
+const formatDateInput = (date: Date | null): string | null => {
+  if (!(date instanceof Date)) {
+    return null;
+  }
+
+  const time = date.getTime();
+  if (!Number.isFinite(time)) {
+    return null;
+  }
+
+  return new Date(time).toISOString().slice(0, 10);
+};
+
+const normalizeExpirationDate = (value: unknown): string | null => {
+  if (value === null || value === undefined) {
+    return null;
+  }
+
+  if (value instanceof Date) {
+    return formatDateInput(value);
+  }
+
+  if (typeof value === 'object') {
+    const maybeTimestamp = value as { [key: string]: any };
+
+    if (typeof maybeTimestamp.toDate === 'function') {
+      return formatDateInput(maybeTimestamp.toDate());
+    }
+
+    const secondsField =
+      typeof maybeTimestamp._seconds === 'number'
+        ? maybeTimestamp._seconds
+        : typeof maybeTimestamp.seconds === 'number'
+        ? maybeTimestamp.seconds
+        : null;
+
+    if (secondsField !== null) {
+      const nanosecondsField =
+        typeof maybeTimestamp._nanoseconds === 'number'
+          ? maybeTimestamp._nanoseconds
+          : typeof maybeTimestamp.nanoseconds === 'number'
+          ? maybeTimestamp.nanoseconds
+          : 0;
+
+      const milliseconds = secondsField * 1000 + Math.floor(nanosecondsField / 1_000_000);
+      return formatDateInput(new Date(milliseconds));
+    }
+  }
+
+  if (typeof value === 'string') {
+    const trimmed = value.trim();
+    if (!trimmed) {
+      return null;
+    }
+
+    if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) {
+      return trimmed;
+    }
+
+    const parsed = Date.parse(trimmed);
+    if (!Number.isFinite(parsed)) {
+      return null;
+    }
+
+    return formatDateInput(new Date(parsed));
+  }
+
+  return null;
+};
+
 const sanitizeChecklistForSave = (
   items: ChecklistItemType[],
   allowExpirationDates: boolean,
@@ -39,12 +109,8 @@ const sanitizeChecklistForSave = (
     .map((item) => {
       let expirationDate: string | null = null;
 
-      if (allowExpirationDates && item.checked && typeof item.expirationDate === 'string') {
-        const trimmed = item.expirationDate.trim();
-        const parsed = Date.parse(trimmed);
-        if (trimmed && Number.isFinite(parsed)) {
-          expirationDate = trimmed;
-        }
+      if (allowExpirationDates && item.checked) {
+        expirationDate = normalizeExpirationDate(item.expirationDate);
       }
 
       return {
@@ -122,7 +188,7 @@ const TodoForm: React.FC<TodoFormProps> = ({ initialData }) => {
         initialData.checklist.map((item) => ({
           ...item,
           id: item.id || generateId(),
-          expirationDate: item.expirationDate ?? null,
+          expirationDate: normalizeExpirationDate(item.expirationDate ?? null),
         }))
       );
     }
@@ -208,14 +274,16 @@ const TodoForm: React.FC<TodoFormProps> = ({ initialData }) => {
         return {
           ...item,
           checked: nextChecked,
-          expirationDate: nextChecked ? item.expirationDate ?? null : null,
+          expirationDate: nextChecked
+            ? normalizeExpirationDate(item.expirationDate ?? null)
+            : null,
         };
       })
     );
   };
 
   const handleChecklistExpirationChange = (id: string, newDate: string | null) => {
-    const normalizedDate = newDate && newDate.trim() ? newDate.trim() : null;
+    const normalizedDate = normalizeExpirationDate(newDate);
     setChecklist(
       checklist.map((item) =>
         item.id === id
