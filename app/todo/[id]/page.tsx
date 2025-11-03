@@ -23,7 +23,7 @@ import { TodoApiResponse, TodoDocument } from '@/types'; // Using ApiResponse fo
 
 async function getTodoById(id: string): Promise<TodoApiResponse | null> {
   try {
-    const res = await fetch(`/api/todo/${id}`);
+    const res = await fetch(`/api/todo/${id}`, { cache: 'no-store' });
     if (!res.ok) {
       if (res.status === 404) return null;
       throw new Error('Failed to fetch todo');

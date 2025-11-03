@@ -32,7 +32,7 @@ function TodoListComponent() {
       setLoading(true);
       setError(null);
       try {
-        const res = await fetch('/api/todo');
+        const res = await fetch('/api/todo', { cache: 'no-store' });
         if (!res.ok) {
           throw new Error('Failed to fetch todos');
         }
