@@ -25,6 +25,29 @@ import { CSS } from '@dnd-kit/utilities';
 
 const generateId = () => Math.random().toString(36).substr(2, 9);
 
+const sanitizeChecklistForSave = (
+  items: ChecklistItemType[],
+  isCoursesSubCategory: boolean,
+) =>
+  items
+    .filter((item) => item.text.trim() !== '')
+    .map((item) => {
+      let expirationDate: string | null = null;
+
+      if (isCoursesSubCategory && item.checked && typeof item.expirationDate === 'string') {
+        const trimmed = item.expirationDate.trim();
+        const parsed = Date.parse(trimmed);
+        if (trimmed && Number.isFinite(parsed)) {
+          expirationDate = trimmed;
+        }
+      }
+
+      return {
+        ...item,
+        expirationDate,
+      };
+    });
+
 interface TodoFormProps {
   initialData?: TodoDocument | null;
 }
@@ -35,6 +58,8 @@ interface ChecklistItemWrapperProps {
   onTextChange: (id: string, newText: string) => void;
   onDelete: (id: string) => void;
   isEditing: boolean;
+  showExpirationInput: boolean;
+  onExpirationChange: (id: string, newDate: string | null) => void;
 }
 
 const SortableChecklistItem: React.FC<ChecklistItemWrapperProps> = (props) => {
@@ -92,23 +117,43 @@ const TodoForm: React.FC<TodoFormProps> = ({ initialData }) => {
         initialData.checklist.map((item) => ({
           ...item,
           id: item.id || generateId(),
+          expirationDate: item.expirationDate ?? null,
         }))
       );
     }
   }, [initialData]);
+
+  useEffect(() => {
+    const isCourses = subCategory.trim().toLowerCase() === 'courses';
+    if (isCourses) {
+      return;
+    }
+
+    setChecklist((items) =>
+      items.map((item) =>
+        item.expirationDate
+          ? {
+              ...item,
+              expirationDate: null,
+            }
+          : item
+      )
+    );
+  }, [subCategory]);
 
   // ✅ Auto-save logic
   useEffect(() => {
     const interval = setInterval(() => {
       const sanitizedCategory = category.trim();
       const sanitizedSubCategory = subCategory.trim();
+      const isCoursesSubCategory = sanitizedSubCategory.toLowerCase() === 'courses';
       const currentData: Todo = {
         title,
         description,
         category: sanitizedCategory,
         subCategory: sanitizedSubCategory,
         assignee,
-        checklist: checklist.filter((item) => item.text.trim() !== ''),
+        checklist: sanitizeChecklistForSave(checklist, isCoursesSubCategory),
       };
       const json = JSON.stringify(currentData);
       if (json !== lastSavedData) {
@@ -134,7 +179,10 @@ const TodoForm: React.FC<TodoFormProps> = ({ initialData }) => {
   };
 
   const handleAddChecklistItem = () => {
-    setChecklist([...checklist, { id: generateId(), text: '', checked: false }]);
+    setChecklist([
+      ...checklist,
+      { id: generateId(), text: '', checked: false, expirationDate: null },
+    ]);
   };
 
   const handleChecklistChange = (id: string, newText: string) => {
@@ -147,8 +195,31 @@ const TodoForm: React.FC<TodoFormProps> = ({ initialData }) => {
 
   const handleChecklistToggle = (id: string) => {
     setChecklist(
+      checklist.map((item) => {
+        if (item.id !== id) {
+          return item;
+        }
+
+        const nextChecked = !item.checked;
+        return {
+          ...item,
+          checked: nextChecked,
+          expirationDate: nextChecked ? item.expirationDate ?? null : null,
+        };
+      })
+    );
+  };
+
+  const handleChecklistExpirationChange = (id: string, newDate: string | null) => {
+    const normalizedDate = newDate && newDate.trim() ? newDate.trim() : null;
+    setChecklist(
       checklist.map((item) =>
-        item.id === id ? { ...item, checked: !item.checked } : item
+        item.id === id
+          ? {
+              ...item,
+              expirationDate: normalizedDate,
+            }
+          : item
       )
     );
   };
@@ -178,13 +249,14 @@ const TodoForm: React.FC<TodoFormProps> = ({ initialData }) => {
       return;
     }
 
+    const isCoursesSubCategory = trimmedSubCategory.toLowerCase() === 'courses';
     const todoData: Todo = {
       title: trimmedTitle,
       description,
       category: trimmedCategory,
       subCategory: trimmedSubCategory,
       assignee,
-      checklist: checklist.filter((item) => item.text.trim() !== ''),
+      checklist: sanitizeChecklistForSave(checklist, isCoursesSubCategory),
     };
 
     try {
@@ -329,6 +401,8 @@ const TodoForm: React.FC<TodoFormProps> = ({ initialData }) => {
                 onTextChange={handleChecklistChange}
                 onDelete={handleDeleteChecklistItem}
                 isEditing={true}
+                showExpirationInput={subCategory.trim().toLowerCase() === 'courses'}
+                onExpirationChange={handleChecklistExpirationChange}
               />
             ))}
           </SortableContext>
