@@ -1,6 +1,6 @@
 'use client';
 
-import React, { Suspense, useEffect, useMemo, useState } from 'react';
+import React, { Suspense, useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import TodoItem from '@/components/TodoItem';
@@ -27,47 +27,67 @@ function TodoListComponent() {
   const [activeCategory, setActiveCategory] = useState<string>(CATEGORY_ALL);
   const [actionError, setActionError] = useState<string | null>(null);
 
+  const fetchTodos = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await fetch('/api/todo', { cache: 'no-store' });
+      if (!res.ok) {
+        throw new Error('Failed to fetch todos');
+      }
+      const data: TodoApiResponse[] = await res.json();
+
+      const sanitizedTodos = data.map((todo) => ({
+        ...todo,
+        category:
+          typeof todo.category === 'string' ? todo.category.trim() : todo.category,
+        subCategory:
+          typeof todo.subCategory === 'string'
+            ? todo.subCategory.trim()
+            : todo.subCategory,
+      }));
+
+      setTodos(sanitizedTodos);
+      setActionError(null);
+
+      const categorySet = new Set<string>();
+      sanitizedTodos.forEach((todo) => {
+        categorySet.add(getCategoryLabel(todo.category));
+      });
+      const sortedCategories = Array.from(categorySet).sort((a, b) =>
+        a.localeCompare(b)
+      );
+      setCategories(sortedCategories);
+    } catch (err: any) {
+      setError(err.message || 'Failed to fetch todos');
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
   useEffect(() => {
-    const fetchTodos = async () => {
-      setLoading(true);
-      setError(null);
-      try {
-        const res = await fetch('/api/todo');
-        if (!res.ok) {
-          throw new Error('Failed to fetch todos');
-        }
-        const data: TodoApiResponse[] = await res.json();
+    fetchTodos();
+  }, [fetchTodos]);
 
-        const sanitizedTodos = data.map((todo) => ({
-          ...todo,
-          category:
-            typeof todo.category === 'string' ? todo.category.trim() : todo.category,
-          subCategory:
-            typeof todo.subCategory === 'string'
-              ? todo.subCategory.trim()
-              : todo.subCategory,
-        }));
+  useEffect(() => {
+    const handleFocus = () => {
+      fetchTodos();
+    };
 
-        setTodos(sanitizedTodos);
-        setActionError(null);
-
-        const categorySet = new Set<string>();
-        sanitizedTodos.forEach((todo) => {
-          categorySet.add(getCategoryLabel(todo.category));
-        });
-        const sortedCategories = Array.from(categorySet).sort((a, b) =>
-          a.localeCompare(b)
-        );
-        setCategories(sortedCategories);
-      } catch (err: any) {
-        setError(err.message || 'Failed to fetch todos');
-      } finally {
-        setLoading(false);
+    const handleVisibilityChange = () => {
+      if (!document.hidden) {
+        fetchTodos();
       }
     };
 
-    fetchTodos();
-  }, []);
+    window.addEventListener('focus', handleFocus);
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    return () => {
+      window.removeEventListener('focus', handleFocus);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, [fetchTodos]);
 
   useEffect(() => {
     const categoryFromUrl = searchParams.get('category');
