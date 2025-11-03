@@ -38,12 +38,46 @@ function resolvePosition(data: any): number {
   return Date.now();
 }
 
+function normalizeExpirationDate(value: any): string | null {
+  if (typeof value === 'string') {
+    const trimmed = value.trim();
+    if (!trimmed) {
+      return null;
+    }
+
+    const parsed = Date.parse(trimmed);
+    if (Number.isFinite(parsed)) {
+      return new Date(parsed).toISOString().slice(0, 10);
+    }
+
+    return null;
+  }
+
+  if (value && typeof value === 'object') {
+    if (typeof value.toDate === 'function') {
+      return value.toDate().toISOString().slice(0, 10);
+    }
+
+    if (typeof value._seconds === 'number') {
+      const milliseconds = value._seconds * 1000 + (value._nanoseconds || 0) / 1e6;
+      return new Date(milliseconds).toISOString().slice(0, 10);
+    }
+  }
+
+  return null;
+}
+
 function serializeTodoDocument(docSnap: FirebaseFirestore.DocumentSnapshot): TodoApiResponse {
   const data = docSnap.data()!;
-  const checklistWithIds: ChecklistItemType[] = (data.checklist || []).map((item: any, idx: number) => ({
-    ...item,
-    id: item.id || `item-${idx}-${Date.now()}`,
-  }));
+  const checklistWithIds: ChecklistItemType[] = (data.checklist || []).map((item: any, idx: number) => {
+    const expirationDate = normalizeExpirationDate(item?.expirationDate);
+
+    return {
+      ...item,
+      id: item?.id || `item-${idx}-${Date.now()}`,
+      expirationDate,
+    };
+  });
 
   return {
     id: docSnap.id,
