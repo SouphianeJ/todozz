@@ -53,6 +53,37 @@ const sanitizeChecklistForSave = (
       };
     });
 
+const normalizeChecklistExpirationDate = (value: unknown): string | null => {
+  if (typeof value === 'string') {
+    const trimmed = value.trim();
+    if (!trimmed) {
+      return null;
+    }
+
+    const parsed = Date.parse(trimmed);
+    if (Number.isFinite(parsed)) {
+      return new Date(parsed).toISOString().slice(0, 10);
+    }
+
+    return null;
+  }
+
+  if (value && typeof value === 'object') {
+    const candidate = value as { toDate?: () => Date; _seconds?: number; _nanoseconds?: number };
+
+    if (typeof candidate.toDate === 'function') {
+      return candidate.toDate().toISOString().slice(0, 10);
+    }
+
+    if (typeof candidate._seconds === 'number') {
+      const milliseconds = candidate._seconds * 1000 + (candidate._nanoseconds || 0) / 1e6;
+      return new Date(milliseconds).toISOString().slice(0, 10);
+    }
+  }
+
+  return null;
+};
+
 interface TodoFormProps {
   initialData?: TodoDocument | null;
 }
@@ -122,7 +153,7 @@ const TodoForm: React.FC<TodoFormProps> = ({ initialData }) => {
         initialData.checklist.map((item) => ({
           ...item,
           id: item.id || generateId(),
-          expirationDate: item.expirationDate ?? null,
+          expirationDate: normalizeChecklistExpirationDate(item.expirationDate),
         }))
       );
     }
