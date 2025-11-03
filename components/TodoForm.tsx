@@ -25,16 +25,21 @@ import { CSS } from '@dnd-kit/utilities';
 
 const generateId = () => Math.random().toString(36).substr(2, 9);
 
+const isCourseSubCategory = (value: string): boolean => {
+  const normalized = value.trim().toLowerCase();
+  return normalized === 'courses' || normalized === 'course';
+};
+
 const sanitizeChecklistForSave = (
   items: ChecklistItemType[],
-  isCoursesSubCategory: boolean,
+  allowExpirationDates: boolean,
 ) =>
   items
     .filter((item) => item.text.trim() !== '')
     .map((item) => {
       let expirationDate: string | null = null;
 
-      if (isCoursesSubCategory && item.checked && typeof item.expirationDate === 'string') {
+      if (allowExpirationDates && item.checked && typeof item.expirationDate === 'string') {
         const trimmed = item.expirationDate.trim();
         const parsed = Date.parse(trimmed);
         if (trimmed && Number.isFinite(parsed)) {
@@ -124,8 +129,7 @@ const TodoForm: React.FC<TodoFormProps> = ({ initialData }) => {
   }, [initialData]);
 
   useEffect(() => {
-    const isCourses = subCategory.trim().toLowerCase() === 'courses';
-    if (isCourses) {
+    if (isCourseSubCategory(subCategory)) {
       return;
     }
 
@@ -146,7 +150,7 @@ const TodoForm: React.FC<TodoFormProps> = ({ initialData }) => {
     const interval = setInterval(() => {
       const sanitizedCategory = category.trim();
       const sanitizedSubCategory = subCategory.trim();
-      const isCoursesSubCategory = sanitizedSubCategory.toLowerCase() === 'courses';
+      const isCoursesSubCategory = isCourseSubCategory(sanitizedSubCategory);
       const currentData: Todo = {
         title,
         description,
@@ -249,7 +253,7 @@ const TodoForm: React.FC<TodoFormProps> = ({ initialData }) => {
       return;
     }
 
-    const isCoursesSubCategory = trimmedSubCategory.toLowerCase() === 'courses';
+    const isCoursesSubCategory = isCourseSubCategory(trimmedSubCategory);
     const todoData: Todo = {
       title: trimmedTitle,
       description,
@@ -401,7 +405,7 @@ const TodoForm: React.FC<TodoFormProps> = ({ initialData }) => {
                 onTextChange={handleChecklistChange}
                 onDelete={handleDeleteChecklistItem}
                 isEditing={true}
-                showExpirationInput={subCategory.trim().toLowerCase() === 'courses'}
+                showExpirationInput={isCourseSubCategory(subCategory)}
                 onExpirationChange={handleChecklistExpirationChange}
               />
             ))}
