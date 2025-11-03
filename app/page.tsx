@@ -248,6 +248,11 @@ function TodoListComponent() {
   return (
     <div>
       <h2>My Todos</h2>
+      <div style={{ marginBottom: 'var(--spacing-unit)' }}>
+        <Link href="/course-expirations" className="button button-secondary">
+          View Course Expirations
+        </Link>
+      </div>
       {actionError && (
         <p className="error-message" role="alert">
           {actionError}

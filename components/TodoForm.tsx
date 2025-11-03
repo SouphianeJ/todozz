@@ -35,6 +35,8 @@ interface ChecklistItemWrapperProps {
   onTextChange: (id: string, newText: string) => void;
   onDelete: (id: string) => void;
   isEditing: boolean;
+  onExpirationChange: (id: string, date: string | null) => void;
+  showExpirationField: boolean;
 }
 
 const SortableChecklistItem: React.FC<ChecklistItemWrapperProps> = (props) => {
@@ -92,6 +94,7 @@ const TodoForm: React.FC<TodoFormProps> = ({ initialData }) => {
         initialData.checklist.map((item) => ({
           ...item,
           id: item.id || generateId(),
+          expirationDate: item.expirationDate ?? null,
         }))
       );
     }
@@ -134,7 +137,10 @@ const TodoForm: React.FC<TodoFormProps> = ({ initialData }) => {
   };
 
   const handleAddChecklistItem = () => {
-    setChecklist([...checklist, { id: generateId(), text: '', checked: false }]);
+    setChecklist([
+      ...checklist,
+      { id: generateId(), text: '', checked: false, expirationDate: null },
+    ]);
   };
 
   const handleChecklistChange = (id: string, newText: string) => {
@@ -149,6 +155,14 @@ const TodoForm: React.FC<TodoFormProps> = ({ initialData }) => {
     setChecklist(
       checklist.map((item) =>
         item.id === id ? { ...item, checked: !item.checked } : item
+      )
+    );
+  };
+
+  const handleChecklistExpirationChange = (id: string, date: string | null) => {
+    setChecklist((items) =>
+      items.map((item) =>
+        item.id === id ? { ...item, expirationDate: date ?? null } : item
       )
     );
   };
@@ -255,6 +269,8 @@ const TodoForm: React.FC<TodoFormProps> = ({ initialData }) => {
     }
   };
 
+  const shouldShowExpirationField = subCategory.trim().toLowerCase() === 'courses';
+
   return (
     <form onSubmit={handleSubmit}>
       {error && <p style={{ color: 'var(--danger-color)' }}>Error: {error}</p>}
@@ -329,6 +345,8 @@ const TodoForm: React.FC<TodoFormProps> = ({ initialData }) => {
                 onTextChange={handleChecklistChange}
                 onDelete={handleDeleteChecklistItem}
                 isEditing={true}
+                onExpirationChange={handleChecklistExpirationChange}
+                showExpirationField={shouldShowExpirationField}
               />
             ))}
           </SortableContext>
