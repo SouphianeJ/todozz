@@ -139,6 +139,7 @@ const TodoForm: React.FC<TodoFormProps> = ({ initialData }) => {
   const [error, setError] = useState<string | null>(null);
 
   const [lastSavedData, setLastSavedData] = useState<string | null>(null); // 👈 auto-save tracking
+  const [isInitialLoadComplete, setIsInitialLoadComplete] = useState(false);
 
   const isEditing = !!initialData;
 
@@ -149,13 +150,41 @@ const TodoForm: React.FC<TodoFormProps> = ({ initialData }) => {
       setCategory(initialData.category);
       setSubCategory(initialData.subCategory);
       setAssignee(initialData.assignee);
-      setChecklist(
-        initialData.checklist.map((item) => ({
-          ...item,
-          id: item.id || generateId(),
-          expirationDate: normalizeChecklistExpirationDate(item.expirationDate),
-        }))
-      );
+      
+      const normalizedChecklist = initialData.checklist.map((item) => ({
+        ...item,
+        id: item.id || generateId(),
+        expirationDate: normalizeChecklistExpirationDate(item.expirationDate),
+      }));
+      
+      setChecklist(normalizedChecklist);
+
+      // Fetch and hydrate expiration dates for Courses sub-category
+      if (isCourseSubCategory(initialData.subCategory) && initialData.id) {
+        fetch(`/api/expirations/${initialData.id}`)
+          .then((res) => res.json())
+          .then((expirationDates: Array<{ itemId: string; expirationDate: string | null }>) => {
+            setChecklist((currentChecklist) =>
+              currentChecklist.map((item) => {
+                const dateEntry = expirationDates.find((d) => d.itemId === item.id);
+                if (dateEntry && dateEntry.expirationDate) {
+                  return {
+                    ...item,
+                    expirationDate: dateEntry.expirationDate,
+                  };
+                }
+                return item;
+              })
+            );
+            setIsInitialLoadComplete(true);
+          })
+          .catch((err) => {
+            console.error('Failed to fetch expiration dates:', err);
+            setIsInitialLoadComplete(true);
+          });
+      } else {
+        setIsInitialLoadComplete(true);
+      }
     }
   }, [initialData]);
 
@@ -178,6 +207,11 @@ const TodoForm: React.FC<TodoFormProps> = ({ initialData }) => {
 
   // ✅ Auto-save logic
   useEffect(() => {
+    // Don't auto-save until initial data is fully loaded
+    if (!isInitialLoadComplete) {
+      return;
+    }
+
     const interval = setInterval(() => {
       const sanitizedCategory = category.trim();
       const sanitizedSubCategory = subCategory.trim();
@@ -198,7 +232,7 @@ const TodoForm: React.FC<TodoFormProps> = ({ initialData }) => {
     }, 5000); // Every 5 seconds
 
     return () => clearInterval(interval);
-  }, [title, description, category, subCategory, assignee, checklist, lastSavedData]);
+  }, [title, description, category, subCategory, assignee, checklist, lastSavedData, isInitialLoadComplete]);
 
   const autoSave = async (data: Todo) => {
     if (!isEditing || !initialData?.id) return;
