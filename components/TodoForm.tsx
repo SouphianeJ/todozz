@@ -139,7 +139,7 @@ const TodoForm: React.FC<TodoFormProps> = ({ initialData }) => {
   const [error, setError] = useState<string | null>(null);
 
   const [lastSavedData, setLastSavedData] = useState<string | null>(null); // 👈 auto-save tracking
-  const [isInitialLoadComplete, setIsInitialLoadComplete] = useState(false);
+  const [isInitialLoadComplete, setIsInitialLoadComplete] = useState(!initialData); // true for new todos
 
   const isEditing = !!initialData;
 
