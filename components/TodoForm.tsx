@@ -162,7 +162,12 @@ const TodoForm: React.FC<TodoFormProps> = ({ initialData }) => {
       // Fetch and hydrate expiration dates for Courses sub-category
       if (isCourseSubCategory(initialData.subCategory) && initialData.id) {
         fetch(`/api/expirations/${initialData.id}`)
-          .then((res) => res.json())
+          .then((res) => {
+            if (!res.ok) {
+              throw new Error(`Failed to fetch expiration dates (status ${res.status})`);
+            }
+            return res.json();
+          })
           .then((expirationDates: Array<{ itemId: string; expirationDate: string | null }>) => {
             setChecklist((currentChecklist) =>
               currentChecklist.map((item) => {
@@ -179,7 +184,7 @@ const TodoForm: React.FC<TodoFormProps> = ({ initialData }) => {
             setIsInitialLoadComplete(true);
           })
           .catch((err) => {
-            console.error('Failed to fetch expiration dates:', err);
+            console.error(`Failed to fetch expiration dates for todo ${initialData.id}:`, err);
             setIsInitialLoadComplete(true);
           });
       } else {
